@@ -1,0 +1,131 @@
+{
+    "Bama_Mayonnaise": {
+        "category": "Food",
+        "subcategory": "Condiments",
+        "original": [
+            {
+                "filename": "original_1.jpg",
+                "path": "Food\\Condiments\\Bama_Mayonnaise\\original\\original_1.jpg",
+                "source_url": "https://www.merciafoods.ng/wp-content/uploads/2022/08/interswitch.png"
+            },
+            {
+                "filename": "original_2.jpg",
+                "path": "Food\\Condiments\\Bama_Mayonnaise\\original\\original_2.jpg",
+                "source_url": "https://www.merciafoods.ng/wp-content/uploads/2022/08/DSC_2534.jpg"
+            },
+            {
+                "filename": "original_3.jpg",
+                "path": "Food\\Condiments\\Bama_Mayonnaise\\original\\original_3.jpg",
+                "source_url": "https://www.merciafoods.ng/wp-content/uploads/2022/08/flutterwave.png"
+            },
+            {
+                "filename": "original_4.jpg",
+                "path": "Food\\Condiments\\Bama_Mayonnaise\\original\\original_4.jpg",
+                "source_url": "https://www.merciafoods.ng/wp-content/uploads/2022/09/bank2.jpg"
+            },
+            {
+                "filename": "original_5.jpg",
+                "path": "Food\\Condiments\\Bama_Mayonnaise\\original\\original_5.jpg",
+                "source_url": "https://www.merciafoods.ng/wp-content/uploads/2022/08/paystack.png"
+            }
+        ],
+        "fake": []
+    },
+    "Peak_Milk": {
+        "category": "Food",
+        "subcategory": "Dairy",
+        "original": [
+            {
+                "filename": "original_1.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_1.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/10/chicken-600x500.jpg"
+            },
+            {
+                "filename": "original_2.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_2.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2022/03/peak-full-cream-instant-milk-powder-sachet-e1727613668372.png"
+            },
+            {
+                "filename": "original_3.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_3.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/cHOCOLATE-BANANA-SMOOTHIE-600x600.jpg"
+            },
+            {
+                "filename": "original_4.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_4.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/08/Untitled-8.jpg"
+            },
+            {
+                "filename": "original_5.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_5.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2022/03/Peak-Filled-Instant-Milk-Powder-12g-Sachet-M18.png"
+            },
+            {
+                "filename": "original_8.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_8.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2022/03/peak-full-cream-instant-milk-powder-pouch.png"
+            },
+            {
+                "filename": "original_9.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_9.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/05/category-nutrients-01.jpg"
+            },
+            {
+                "filename": "original_10.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_10.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/omlette-600x600.jpg"
+            },
+            {
+                "filename": "original_11.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_11.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/06/Peak-Full-Cream-Instant-Milk-Powder-16g-Sachet-SKU-01.png"
+            },
+            {
+                "filename": "original_13.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_13.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/Semo-600x600.jpg"
+            },
+            {
+                "filename": "original_14.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_14.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/SWEET-POTATO-MILK-PANCAKE\u200b-600x600.jpg"
+            },
+            {
+                "filename": "original_15.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_15.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/Oat-pancake-600x600.jpg"
+            },
+            {
+                "filename": "original_16.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_16.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/06/C-600x600.jpg"
+            },
+            {
+                "filename": "original_17.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_17.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/05/Untitled-1Artboard-7-600x600.jpg"
+            },
+            {
+                "filename": "original_19.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_19.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/11/Avocado-Icecream-copy-600x600.jpg"
+            },
+            {
+                "filename": "original_21.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_21.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2022/03/Peak-Full-Cream-Instant-Milk-Powder-900g-Tin.png"
+            },
+            {
+                "filename": "original_22.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_22.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2021/11/egusi-rice-600x600.jpg"
+            },
+            {
+                "filename": "original_23.jpg",
+                "path": "Food\\Dairy\\Peak_Milk\\original\\original_23.jpg",
+                "source_url": "https://www.peakmilk.com.ng/wp-content/uploads/2020/06/Peak-Filled-Instant-Milk-Powder-360g-Pouch.png"
+            }
+        ],
+        "fake": []
+    }
+}

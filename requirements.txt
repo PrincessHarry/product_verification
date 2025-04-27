@@ -1,0 +1,17 @@
+Django>=4.2.0
+django-cors-headers
+python-dotenv
+Pillow
+requests
+google-generativeai
+scikit-learn
+torch
+torchvision
+opencv-python
+pytube
+pandas
+numpy
+beautifulsoup4
+gunicorn
+whitenoise
+dj-database-url

@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Product{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-2xl font-bold text-gray-900 text-center">Verify Your Product</h2>
+            <p class="mt-2 text-sm text-gray-600 text-center">Upload an image of your product for verification</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden border-t border-gray-200">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Verification Results</h3>
+                <div class="space-y-4">
+                    <!-- Final Verdict Section -->
+                    <div id="finalVerdictSection" class="hidden bg-gray-50 rounded-md p-4 border-l-4 border-green-500">
+                        <h4 class="text-base font-medium text-gray-900 mb-2">Final Verdict</h4>
+                        <p id="finalVerdict" class="text-sm text-gray-700"></p>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Status:</span>
+                        <span id="verificationStatus" class="text-sm font-medium"></span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Confidence:</span>
+                        <span id="verificationConfidence" class="text-sm font-medium"></span>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Product Details:</h4>
+                        <div class="bg-gray-50 rounded-md p-4">
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-3 gap-4">
+                                    <span class="text-sm font-medium text-gray-600">Name:</span>
+                                    <span id="productName" class="text-sm col-span-2"></span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <span class="text-sm font-medium text-gray-600">Manufacturer:</span>
+                                    <span id="productManufacturer" class="text-sm col-span-2"></span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <span class="text-sm font-medium text-gray-600">Product Code:</span>
+                                    <span id="productCode" class="text-sm col-span-2"></span>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="text-sm font-medium text-gray-600">Description:</span>
+                                    <p id="productDescription" class="text-sm mt-1 text-gray-700"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Analysis Details:</h4>
+                        <div id="analysisDetails" class="bg-gray-50 rounded-md p-4 text-sm text-gray-600 prose prose-sm max-w-none">
+                            <style>
+                                #analysisDetails strong {
+                                    color: #4B5563;
+                                    font-weight: 600;
+                                }
+                                #analysisDetails ul {
+                                    margin-top: 0.5rem;
+                                    margin-bottom: 0.5rem;
+                                }
+                                #analysisDetails li {
+                                    margin-bottom: 0.25rem;
+                                }
+                                #analysisDetails br {
+                                    margin-bottom: 0.5rem;
+                                }
+                            </style>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button type="button" id="verifyAnother" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <i class="fas fa-redo mr-2"></i> Verify Another
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Verification -->
+        <div id="verificationMethods" class="border-t border-gray-200">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Verify by Image</h3>
+                <form method="post" action="{% url 'products:product_verify' %}" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <!-- Product Name Input -->
+                        <div class="mb-4">
+                            <label for="product_name" class="block text-sm font-medium text-gray-700">Product Name</label>
+                            <input type="text" name="product_name" id="product_name" 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                                placeholder="e.g., Nike Air Max 270">
+                        </div>
+
+                        <div class="flex justify-center space-x-4 mb-4">
+                            <button type="button" id="startCamera" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-camera mr-2"></i> Use Camera
+                            </button>
+                            <button type="button" id="uploadFile" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-upload mr-2"></i> Upload File
+                            </button>
+                        </div>
+
+                        <!-- Camera Preview -->
+                        <div id="cameraContainer" class="hidden">
+                            <div class="relative">
+                                <video id="camera" class="w-full rounded-lg" autoplay playsinline></video>
+                                <button type="button" id="captureBtn" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-light">
+                                    <i class="fas fa-camera mr-2"></i> Capture
+                                </button>
+                            </div>
+                            <canvas id="canvas" class="hidden"></canvas>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div id="uploadContainer" class="hidden">
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i class="fas fa-upload text-gray-400 text-3xl mb-3"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-light focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                            <span>Upload a file</span>
+                                            <input id="image" name="image" type="file" class="sr-only" accept="image/*" required>
+                                        </label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview Image -->
+                        <div id="previewContainer" class="hidden mt-4">
+                            <img id="preview" class="max-h-48 mx-auto rounded-lg">
+                            <div class="mt-4 flex justify-center space-x-4">
+                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-light">
+                                    <i class="fas fa-check mr-2"></i> Verify Image
+                                </button>
+                                <button type="button" id="retakeBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                    <i class="fas fa-redo mr-2"></i> Retake
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    let stream = null;
+    const cameraContainer = document.getElementById('cameraContainer');
+    const uploadContainer = document.getElementById('uploadContainer');
+    const previewContainer = document.getElementById('previewContainer');
+    const camera = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const imageInput = document.getElementById('image');
+
+    // Camera functionality
+    document.getElementById('startCamera').addEventListener('click', async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            camera.srcObject = stream;
+            cameraContainer.classList.remove('hidden');
+            uploadContainer.classList.add('hidden');
+            previewContainer.classList.add('hidden');
+        } catch (err) {
+            alert('Error accessing camera: ' + err.message);
+        }
+    });
+
+    document.getElementById('captureBtn').addEventListener('click', () => {
+        canvas.width = camera.videoWidth;
+        canvas.height = camera.videoHeight;
+        canvas.getContext('2d').drawImage(camera, 0, 0);
+        preview.src = canvas.toDataURL('image/jpeg');
+        previewContainer.classList.remove('hidden');
+        cameraContainer.classList.add('hidden');
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+
+    // File upload functionality
+    document.getElementById('uploadFile').addEventListener('click', () => {
+        uploadContainer.classList.remove('hidden');
+        cameraContainer.classList.add('hidden');
+        previewContainer.classList.add('hidden');
+    });
+
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                previewContainer.classList.remove('hidden');
+                uploadContainer.classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Retake functionality
+    document.getElementById('retakeBtn').addEventListener('click', () => {
+        previewContainer.classList.add('hidden');
+        uploadContainer.classList.remove('hidden');
+        imageInput.value = '';
+    });
+
+    // Handle form submission
+    document.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault(); // Prevent default form submission
+        
+        if (preview.src) {
+            const formData = new FormData();
+            const blob = dataURLtoBlob(preview.src);
+            formData.append('image', blob, 'captured_image.jpg');
+            formData.append('product_name', document.getElementById('product_name').value);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            
+            fetch(e.target.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display results
+                document.getElementById('resultsSection').classList.remove('hidden');
+                document.getElementById('verificationMethods').classList.add('hidden');
+                
+                // Update status and confidence
+                const statusElement = document.getElementById('verificationStatus');
+                const statusText = data.status.replace('_', ' ').charAt(0).toUpperCase() + data.status.slice(1).replace('_', ' ');
+                statusElement.textContent = statusText;
+                statusElement.className = `text-sm font-medium ${
+                    data.status === 'original' ? 'text-green-600' : 
+                    data.status === 'likely_original' ? 'text-blue-600' :
+                    data.status === 'likely_fake' ? 'text-yellow-600' : 
+                    data.status === 'fake' ? 'text-red-600' : 'text-gray-600'
+                }`;
+                
+                document.getElementById('verificationConfidence').textContent = 
+                    `${(data.confidence * 100).toFixed(1)}%`;
+                
+                // Update final verdict with a more detailed message
+                const finalVerdictSection = document.getElementById('finalVerdictSection');
+                const finalVerdict = document.getElementById('finalVerdict');
+                
+                // Create verdict message based on status
+                let verdictMessage = `This product is ${statusText.toLowerCase()}. `;
+                verdictMessage += data.message;
+                
+                if (data.confidence >= 0.85) {
+                    verdictMessage += " The analysis shows strong indicators of authenticity.";
+                } else if (data.confidence >= 0.70) {
+                    verdictMessage += " While showing positive indicators, some aspects could not be fully verified.";
+                } else if (data.confidence >= 0.40) {
+                    verdictMessage += " Several concerning indicators were detected.";
+                } else {
+                    verdictMessage += " Multiple signs of counterfeiting were detected.";
+                }
+                
+                finalVerdict.textContent = verdictMessage;
+                finalVerdictSection.classList.remove('hidden');
+                
+                // Update border color based on new status categories
+                finalVerdictSection.className = finalVerdictSection.className.replace(/border-\w+-\d+/, 
+                    data.status === 'original' ? 'border-green-500' : 
+                    data.status === 'likely_original' ? 'border-blue-500' :
+                    data.status === 'likely_fake' ? 'border-yellow-500' : 
+                    'border-red-500'
+                );
+                
+                // Update product details
+                if (data.product_details) {
+                    document.getElementById('productName').textContent = data.product_details.name;
+                    document.getElementById('productManufacturer').textContent = data.product_details.manufacturer;
+                    document.getElementById('productCode').textContent = data.product_details.product_code;
+                    document.getElementById('productDescription').textContent = data.product_details.description;
+                }
+                
+                // Update analysis details with formatted content
+                const analysisDetails = document.getElementById('analysisDetails');
+                
+                if (data.analysis) {
+                    // Format the analysis text
+                    let formattedAnalysis = data.analysis;
+                    
+                    // Replace markdown-style bold with HTML
+                    formattedAnalysis = formattedAnalysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    
+                    // Replace markdown-style lists with HTML lists
+                    formattedAnalysis = formattedAnalysis.replace(/\n\*\s(.*?)(?=\n|$)/g, '<li>$1</li>');
+                    
+                    // Wrap lists in ul tags
+                    formattedAnalysis = formattedAnalysis.replace(/<li>.*?<\/li>/g, function(match) {
+                        return '<ul class="list-disc pl-5 my-2">' + match + '</ul>';
+                    });
+                    
+                    // Add line breaks for paragraphs
+                    formattedAnalysis = formattedAnalysis.replace(/\n\n/g, '<br><br>');
+                    
+                    // Set the formatted HTML
+                    analysisDetails.innerHTML = formattedAnalysis;
+                } else {
+                    analysisDetails.textContent = 'No analysis available';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error during verification: ' + error.message);
+            });
+        }
+    });
+
+    // Handle "Verify Another" button
+    document.getElementById('verifyAnother').addEventListener('click', () => {
+        document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('verificationMethods').classList.remove('hidden');
+    });
+
+    // Utility function to convert data URL to blob
+    function dataURLtoBlob(dataURL) {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    }
+</script>
+{% endblock %}
+{% endblock %} 
