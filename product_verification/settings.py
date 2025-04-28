@@ -14,7 +14,7 @@ from pathlib import Path
 import os
 import sys
 from dotenv import load_dotenv
-import dj_database_url
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,13 +29,16 @@ sys.path.insert(0, str(BASE_DIR))
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-default-secret-key-for-dev')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'f1h_btchf+tkh-_x&oz5*72bu%-6ccrf+zvh4^s--vv%x=goq3')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']  # Configure this based on your Render URL
+# Configure allowed hosts based on environment
+ALLOWED_HOSTS = ('127.0.0.1', 'product-verification.onrender.com')
 
+# ALLOWED_HOSTS = []
 
 # Application definition
 
@@ -92,12 +95,24 @@ WSGI_APPLICATION = 'product_verification.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
-        conn_max_age=600
-    )
-}
+# Database configuration based on environment
+if os.getenv('DATABASE_URL'):
+    # Production database configuration
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600
+        )
+    }
+else:
+    # Development database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -165,15 +180,16 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://product-verification.onrender.com",
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'https://product-verification.onrender.com').split(',')
 if DEBUG:
-    CORS_ALLOWED_ORIGINS.append("http://localhost:8000")
+    CORS_ALLOWED_ORIGINS.extend([
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ])
 
 # File Upload settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('FILE_UPLOAD_MAX_MEMORY_SIZE', 10485760))  # Default 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('DATA_UPLOAD_MAX_MEMORY_SIZE', 10485760))  # Default 10MB
 
 # # Gemini API settings (for AI features)
 # GEMINI_API_KEY = os.getenv('GOOGLE_API_KEY', '')
@@ -190,6 +206,7 @@ for directory in REQUIRED_DIRS:
 
 # Security settings
 if not DEBUG:
+    # Production settings
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -199,3 +216,19 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
+    
+    # For production behind a proxy (like Nginx)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    USE_X_FORWARDED_PORT = True
+else:
+    # Development settings - simple HTTP access
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_BROWSER_XSS_FILTER = False
+    SECURE_CONTENT_TYPE_NOSNIFF = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+    X_FRAME_OPTIONS = 'SAMEORIGIN'

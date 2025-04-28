@@ -14,4 +14,5 @@ numpy
 beautifulsoup4
 gunicorn
 whitenoise
-dj-database-url
+django-extensions==3.2.3
+

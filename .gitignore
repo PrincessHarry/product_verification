@@ -1,0 +1,7 @@
+# Environment files
+.env
+
+# Virtual Environment
+detectenv/
+detectenv/*
+!detectenv/.gitkeep 
