@@ -29,11 +29,11 @@ sys.path.insert(0, str(BASE_DIR))
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'f1h_btchf+tkh-_x&oz5*72bu%-6ccrf+zvh4^s--vv%x=goq3')
+SECRET_KEY = 'aIm8FYuJrtO-0WKed_OpkhaCgHsOsSfO6pupqi9gymbE_yPcQrCcJ1grL18krffIo1M'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
+DEBUG = True
 
 # Configure allowed hosts based on environment
 ALLOWED_HOSTS = ('127.0.0.1', 'product-verification.onrender.com')
@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'corsheaders',
+    'django_extensions',
     
     # Local apps
     'products',

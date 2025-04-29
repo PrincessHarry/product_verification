@@ -20,7 +20,8 @@ def run_server(mode):
         os.environ['DJANGO_DEBUG'] = 'True'
         os.environ['DJANGO_SETTINGS_MODULE'] = 'product_verification.settings'
         print("Starting development server...")
-        subprocess.run(['python', 'manage.py', 'runserver', '0.0.0.0:8000'])
+        # Run with HTTPS in development
+        subprocess.run(['python', 'manage.py', 'runserver_plus', '--cert-file', 'cert.crt', '--key-file', 'cert.key', '0.0.0.0:8000'])
     elif mode == 'prod':
         os.environ['DJANGO_DEBUG'] = 'False'
         os.environ['DJANGO_SETTINGS_MODULE'] = 'product_verification.settings'

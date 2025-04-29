@@ -2,62 +2,114 @@
 
 {% block title %}Verify Product{% endblock %}
 
-{% block content %}
-<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-2xl font-bold text-gray-900 text-center">Verify Your Product</h2>
-            <p class="mt-2 text-sm text-gray-600 text-center">Upload an image of your product for verification</p>
-        </div>
+{% block extra_css %}
+<style>
+    /* Loading spinner styles */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #065f46;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
 
-        <!-- Results Section -->
-        <div id="resultsSection" class="hidden border-t border-gray-200">
-            <div class="p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Verification Results</h3>
-                <div class="space-y-4">
-                    <!-- Final Verdict Section -->
-                    <div id="finalVerdictSection" class="hidden bg-gray-50 rounded-md p-4 border-l-4 border-green-500">
-                        <h4 class="text-base font-medium text-gray-900 mb-2">Final Verdict</h4>
-                        <p id="finalVerdict" class="text-sm text-gray-700"></p>
+{% block content %}
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <div class="text-lg font-medium text-gray-700">Verifying your product...</div>
+    <div class="text-sm text-gray-500 mt-2">This may take a few moments</div>
+</div>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow-lg rounded-xl overflow-hidden">
+        <div class="px-6 py-8 sm:px-10 sm:py-12">
+            <!-- Upload Header Section -->
+            <div id="uploadHeader" class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">Product Authentication Check</h2>
+                <p class="mt-2 text-lg text-gray-600">Protect yourself from counterfeits. Upload a clear image of your product and let our AI verify its authenticity.</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden border-t border-gray-200 pt-8">
+                <div class="space-y-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900">Authentication Report</h2>
+                        <p class="mt-2 text-lg text-gray-600">Below is the detailed analysis of your product's authenticity</p>
                     </div>
                     
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700">Status:</span>
-                        <span id="verificationStatus" class="text-sm font-medium"></span>
+                    <!-- Final Verdict Section -->
+                    <div id="finalVerdictSection" class="hidden rounded-xl p-6 border-l-4 transition-all duration-300">
+                        <h4 class="text-xl font-semibold text-gray-900 mb-3">Authentication Results</h4>
+                        <p id="finalVerdict" class="text-gray-700"></p>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700">Confidence:</span>
-                        <span id="verificationConfidence" class="text-sm font-medium"></span>
-                    </div>
-                    <div class="mt-4">
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Product Details:</h4>
-                        <div class="bg-gray-50 rounded-md p-4">
-                            <div class="space-y-3">
-                                <div class="grid grid-cols-3 gap-4">
-                                    <span class="text-sm font-medium text-gray-600">Name:</span>
-                                    <span id="productName" class="text-sm col-span-2"></span>
-                                </div>
-                                <div class="grid grid-cols-3 gap-4">
-                                    <span class="text-sm font-medium text-gray-600">Manufacturer:</span>
-                                    <span id="productManufacturer" class="text-sm col-span-2"></span>
-                                </div>
-                                <div class="grid grid-cols-3 gap-4">
-                                    <span class="text-sm font-medium text-gray-600">Product Code:</span>
-                                    <span id="productCode" class="text-sm col-span-2"></span>
-                                </div>
-                                <div class="mt-3">
-                                    <span class="text-sm font-medium text-gray-600">Description:</span>
-                                    <p id="productDescription" class="text-sm mt-1 text-gray-700"></p>
-                                </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-medium text-gray-700">Status:</span>
+                                <span id="verificationStatus" class="text-lg font-semibold"></span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-medium text-gray-700">Confidence:</span>
+                                <span id="verificationConfidence" class="text-lg font-semibold"></span>
                             </div>
                         </div>
                     </div>
-                    <div class="mt-4">
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Analysis Details:</h4>
-                        <div id="analysisDetails" class="bg-gray-50 rounded-md p-4 text-sm text-gray-600 prose prose-sm max-w-none">
+
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h4 class="text-xl font-semibold text-gray-900 mb-4">Product Details</h4>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <span class="text-sm font-medium text-gray-600">Name:</span>
+                                    <p id="productName" class="text-lg text-gray-900"></p>
+                                </div>
+                                <div>
+                                    <span class="text-sm font-medium text-gray-600">Manufacturer:</span>
+                                    <p id="productManufacturer" class="text-lg text-gray-900"></p>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="text-sm font-medium text-gray-600">Product Code:</span>
+                                <p id="productCode" class="text-lg text-gray-900"></p>
+                            </div>
+                            <div>
+                                <span class="text-sm font-medium text-gray-600">Description:</span>
+                                <p id="productDescription" class="text-lg text-gray-900 mt-1"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h4 class="text-xl font-semibold text-gray-900 mb-4">Analysis Details</h4>
+                        <div id="analysisDetails" class="prose prose-sm max-w-none">
                             <style>
                                 #analysisDetails strong {
-                                    color: #4B5563;
+                                    color: #1f2937;
                                     font-weight: 600;
                                 }
                                 #analysisDetails ul {
@@ -65,89 +117,100 @@
                                     margin-bottom: 0.5rem;
                                 }
                                 #analysisDetails li {
-                                    margin-bottom: 0.25rem;
+                                    margin-bottom: 0.5rem;
+                                    position: relative;
+                                    padding-left: 1.5rem;
+                                }
+                                #analysisDetails li:before {
+                                    content: "•";
+                                    position: absolute;
+                                    left: 0;
+                                    color: #2563eb;
                                 }
                                 #analysisDetails br {
-                                    margin-bottom: 0.5rem;
+                                    margin-bottom: 0.75rem;
                                 }
                             </style>
                         </div>
                     </div>
-                </div>
-                <div class="mt-6 flex justify-end">
-                    <button type="button" id="verifyAnother" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        <i class="fas fa-redo mr-2"></i> Verify Another
-                    </button>
+
+                    <div class="flex justify-end">
+                        <button type="button" id="verifyAnother" class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out transform hover:-translate-y-1">
+                            <i class="fas fa-redo mr-2"></i> Verify Another
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Image Verification -->
-        <div id="verificationMethods" class="border-t border-gray-200">
-            <div class="p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Verify by Image</h3>
-                <form method="post" action="{% url 'products:product_verify' %}" enctype="multipart/form-data" class="space-y-4">
-                    {% csrf_token %}
-                    <div>
-                        <!-- Product Name Input -->
-                        <div class="mb-4">
-                            <label for="product_name" class="block text-sm font-medium text-gray-700">Product Name</label>
-                            <input type="text" name="product_name" id="product_name" 
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                                placeholder="e.g., Nike Air Max 270">
-                        </div>
+            <!-- Image Verification -->
+            <div id="verificationMethods" class="border-t border-gray-200 pt-8">
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-semibold text-gray-900 text-center">Verify by Image</h3>
+                    <form method="post" action="{% url 'products:product_verify' %}" enctype="multipart/form-data" class="space-y-6">
+                        {% csrf_token %}
+                        <div>
+                            <!-- Product Name Input -->
+                            <div class="mb-6">
+                                <label for="product_name" class="block text-lg font-medium text-gray-700 mb-2">Product Name</label>
+                                <input type="text" name="product_name" id="product_name" 
+                                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-lg"
+                                    placeholder="e.g., Nike Air Max 270">
+                            </div>
 
-                        <div class="flex justify-center space-x-4 mb-4">
-                            <button type="button" id="startCamera" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                <i class="fas fa-camera mr-2"></i> Use Camera
-                            </button>
-                            <button type="button" id="uploadFile" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                <i class="fas fa-upload mr-2"></i> Upload File
-                            </button>
-                        </div>
-
-                        <!-- Camera Preview -->
-                        <div id="cameraContainer" class="hidden">
-                            <div class="relative">
-                                <video id="camera" class="w-full rounded-lg" autoplay playsinline></video>
-                                <button type="button" id="captureBtn" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-light">
-                                    <i class="fas fa-camera mr-2"></i> Capture
+                            <div class="flex justify-center space-x-4 mb-6">
+                                <button type="button" id="startCamera" class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out transform hover:-translate-y-1">
+                                    <i class="fas fa-camera mr-2"></i> Use Camera
+                                </button>
+                                <button type="button" id="uploadFile" class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out transform hover:-translate-y-1">
+                                    <i class="fas fa-upload mr-2"></i> Upload File
                                 </button>
                             </div>
-                            <canvas id="canvas" class="hidden"></canvas>
-                        </div>
 
-                        <!-- File Upload -->
-                        <div id="uploadContainer" class="hidden">
-                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                <div class="space-y-1 text-center">
-                                    <i class="fas fa-upload text-gray-400 text-3xl mb-3"></i>
-                                    <div class="flex text-sm text-gray-600">
-                                        <label for="image" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-light focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
-                                            <span>Upload a file</span>
-                                            <input id="image" name="image" type="file" class="sr-only" accept="image/*" required>
-                                        </label>
-                                        <p class="pl-1">or drag and drop</p>
+                            <!-- Camera Preview -->
+                            <div id="cameraContainer" class="hidden">
+                                <div class="relative rounded-lg overflow-hidden">
+                                    <video id="camera" class="w-full rounded-lg" autoplay playsinline></video>
+                                    <button type="button" id="captureBtn" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-primary hover:bg-primary-dark transition duration-150 ease-in-out transform hover:-translate-y-1">
+                                        <i class="fas fa-camera mr-2"></i> Capture
+                                    </button>
+                                </div>
+                                <canvas id="canvas" class="hidden"></canvas>
+                            </div>
+
+                            <!-- File Upload -->
+                            <div id="uploadContainer" class="hidden">
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                                    <div class="space-y-1 text-center">
+                                        <i class="fas fa-upload text-gray-400 text-4xl mb-3"></i>
+                                        <div class="flex text-base text-gray-600">
+                                            <label for="image" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                                                <span>Upload a file</span>
+                                                <input id="image" name="image" type="file" class="sr-only" accept="image/*" required>
+                                            </label>
+                                            <p class="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p class="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
                                     </div>
-                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                                </div>
+                            </div>
+
+                            <!-- Preview Image -->
+                            <div id="previewContainer" class="hidden mt-6">
+                                <div class="rounded-lg overflow-hidden shadow-lg">
+                                    <img id="preview" class="w-full h-auto">
+                                </div>
+                                <div class="mt-6 flex justify-center space-x-4">
+                                    <button type="submit" class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-primary hover:bg-primary-dark transition duration-150 ease-in-out transform hover:-translate-y-1">
+                                        <i class="fas fa-check mr-2"></i> Verify Image
+                                    </button>
+                                    <button type="button" id="retakeBtn" class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out transform hover:-translate-y-1">
+                                        <i class="fas fa-redo mr-2"></i> Retake
+                                    </button>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Preview Image -->
-                        <div id="previewContainer" class="hidden mt-4">
-                            <img id="preview" class="max-h-48 mx-auto rounded-lg">
-                            <div class="mt-4 flex justify-center space-x-4">
-                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-light">
-                                    <i class="fas fa-check mr-2"></i> Verify Image
-                                </button>
-                                <button type="button" id="retakeBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                    <i class="fas fa-redo mr-2"></i> Retake
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -163,6 +226,7 @@
     const canvas = document.getElementById('canvas');
     const preview = document.getElementById('preview');
     const imageInput = document.getElementById('image');
+    const loadingOverlay = document.getElementById('loadingOverlay');
 
     // Camera functionality
     document.getElementById('startCamera').addEventListener('click', async () => {
@@ -217,31 +281,42 @@
     });
 
     // Handle form submission
-    document.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault(); // Prevent default form submission
+    document.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
         if (preview.src) {
-            const formData = new FormData();
-            const blob = dataURLtoBlob(preview.src);
-            formData.append('image', blob, 'captured_image.jpg');
-            formData.append('product_name', document.getElementById('product_name').value);
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-            
-            fetch(e.target.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                // Show loading overlay
+                loadingOverlay.classList.remove('hidden');
+                
+                const formData = new FormData();
+                const blob = dataURLtoBlob(preview.src);
+                formData.append('image', blob, 'captured_image.jpg');
+                formData.append('product_name', document.getElementById('product_name').value);
+                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                
+                const response = await fetch(e.target.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+                
+                // Hide upload header and verification methods
+                document.getElementById('uploadHeader').classList.add('hidden');
+                document.getElementById('verificationMethods').classList.add('hidden');
+                
                 // Display results
                 document.getElementById('resultsSection').classList.remove('hidden');
-                document.getElementById('verificationMethods').classList.add('hidden');
                 
                 // Update status and confidence
                 const statusElement = document.getElementById('verificationStatus');
                 const statusText = data.status.replace('_', ' ').charAt(0).toUpperCase() + data.status.slice(1).replace('_', ' ');
                 statusElement.textContent = statusText;
-                statusElement.className = `text-sm font-medium ${
+                statusElement.className = `text-lg font-semibold ${
                     data.status === 'original' ? 'text-green-600' : 
                     data.status === 'likely_original' ? 'text-blue-600' :
                     data.status === 'likely_fake' ? 'text-yellow-600' : 
@@ -274,10 +349,10 @@
                 
                 // Update border color based on new status categories
                 finalVerdictSection.className = finalVerdictSection.className.replace(/border-\w+-\d+/, 
-                    data.status === 'original' ? 'border-green-500' : 
-                    data.status === 'likely_original' ? 'border-blue-500' :
-                    data.status === 'likely_fake' ? 'border-yellow-500' : 
-                    'border-red-500'
+                    data.status === 'original' ? 'border-green-500 bg-green-50' : 
+                    data.status === 'likely_original' ? 'border-blue-500 bg-blue-50' :
+                    data.status === 'likely_fake' ? 'border-yellow-500 bg-yellow-50' : 
+                    'border-red-500 bg-red-50'
                 );
                 
                 // Update product details
@@ -314,17 +389,19 @@
                 } else {
                     analysisDetails.textContent = 'No analysis available';
                 }
-            })
-            .catch(error => {
+            } catch (error) {
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
                 console.error('Error:', error);
                 alert('Error during verification: ' + error.message);
-            });
+            }
         }
     });
 
     // Handle "Verify Another" button
     document.getElementById('verifyAnother').addEventListener('click', () => {
         document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('uploadHeader').classList.remove('hidden');
         document.getElementById('verificationMethods').classList.remove('hidden');
     });
 
