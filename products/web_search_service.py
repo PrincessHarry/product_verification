@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Optional
 import logging
-from agno import Agent, Task
+from agno.agent import Agent
 from google.generativeai import GenerativeModel
 import google.generativeai as genai
 from PIL import Image
@@ -37,24 +37,24 @@ class WebSearchService:
             
             # Create tasks for the agent
             tasks = [
-                Task(
-                    name="image_analysis",
-                    description="Analyze the product image for authenticity markers",
-                    function=self._analyze_image,
-                    args={"image": image}
-                ),
-                Task(
-                    name="web_search",
-                    description="Search for similar products and reviews online",
-                    function=self._search_web,
-                    args={"product_name": product_name}
-                ),
-                Task(
-                    name="video_analysis",
-                    description="Search for product review videos",
-                    function=self._search_videos,
-                    args={"product_name": product_name}
-                )
+                {
+                    "name": "image_analysis",
+                    "description": "Analyze the product image for authenticity markers",
+                    "function": self._analyze_image,
+                    "args": {"image": image}
+                },
+                {
+                    "name": "web_search",
+                    "description": "Search for similar products and reviews online",
+                    "function": self._search_web,
+                    "args": {"product_name": product_name}
+                },
+                {
+                    "name": "video_analysis",
+                    "description": "Search for product review videos",
+                    "function": self._search_videos,
+                    "args": {"product_name": product_name}
+                }
             ]
             
             # Execute tasks in parallel
