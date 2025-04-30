@@ -2,16 +2,17 @@ services:
   - type: web
     name: product-verification
     env: python
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn product_verification.wsgi:application"
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+    startCommand: gunicorn product_verification.wsgi:application
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.12
-      - key: DATABASE_URL
-        value: sqlite:///db.sqlite3
-      - key: DJANGO_SECRET_KEY
-        generateValue: true
-      - key: DJANGO_DEBUG
-        value: false
-      - key: WEB_CONCURRENCY
-        value: 4 
+        value: 3.11.0
+      - key: DISABLE_COLLECTSTATIC
+        value: 1
+    plan: standard  # This is important for ML workloads
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    healthCheckPath: /health/ 

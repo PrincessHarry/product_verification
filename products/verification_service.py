@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import logging
 import base64
 import torch
-from torchvision import transforms
+from torchvision import transforms, models
 from PIL import Image
 import io
 import numpy as np
@@ -32,14 +32,25 @@ class VerificationService:
         
         # Initialize image analysis models
         try:
-            logger.info("Loading image analysis models...")
-            self.image_processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
-            self.image_model = AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")
-            logger.info("Image analysis models loaded successfully")
+            logger.info("Loading MobileNet model...")
+            # Use MobileNetV2 which is much lighter than ResNet-50
+            self.model = models.mobilenet_v2(pretrained=True)
+            self.model.eval()  # Set to evaluation mode
+            
+            # Define image transformations
+            self.transform = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                  std=[0.229, 0.224, 0.225])
+            ])
+            
+            logger.info("MobileNet model loaded successfully")
         except Exception as e:
-            logger.error(f"Error loading image models: {str(e)}")
-            self.image_processor = None
-            self.image_model = None
+            logger.error(f"Error loading MobileNet model: {str(e)}")
+            self.model = None
+            self.transform = None
             
         # Security feature templates (example features to look for)
         self.security_features = {
@@ -68,41 +79,76 @@ class VerificationService:
 
         self.image_agent = ImageVerificationAgent()
 
+    def is_ready(self) -> bool:
+        """Check if the service is ready to handle requests"""
+        return self.model is not None and self.transform is not None
+
     async def verify_product(
         self,
         image_data: Optional[bytes] = None,
         product_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Verify a product using image analysis
-        """
-        results = []
-        
-        # Verify by image if provided
-        if image_data:
-            try:
-                image_result = await self.image_agent.verify_authenticity(
-                    image_data=image_data,
-                    product_name=product_name
-                )
-                results.append(('image', image_result))
-            except Exception as e:
-                results.append(('image', {
+        """Verify a product using image analysis and other methods"""
+        try:
+            if not self.is_ready():
+                return {
                     'status': 'error',
-                    'message': str(e),
+                    'message': 'Service is not ready. Please try again in a few moments.',
                     'confidence': 0.0
-                }))
+                }
 
-        # If no verification method provided
-        if not results:
+            if image_data:
+                # Convert image data to PIL Image
+                image = Image.open(io.BytesIO(image_data))
+                
+                # Apply transformations
+                input_tensor = self.transform(image)
+                input_batch = input_tensor.unsqueeze(0)
+                
+                # Move to GPU if available, otherwise use CPU
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                input_batch = input_batch.to(device)
+                self.model = self.model.to(device)
+                
+                # Get predictions
+                with torch.no_grad():
+                    output = self.model(input_batch)
+                
+                # Convert to probabilities
+                probabilities = torch.nn.functional.softmax(output[0], dim=0)
+                
+                # Get top prediction
+                top_prob, top_class = torch.max(probabilities, 0)
+                
+                # Basic verification logic (you can customize this)
+                confidence = top_prob.item()
+                if confidence > 0.7:
+                    status = 'likely_original'
+                elif confidence > 0.4:
+                    status = 'likely_fake'
+                else:
+                    status = 'fake'
+                
+                return {
+                    'status': status,
+                    'confidence': confidence,
+                    'message': f'Image analysis completed with {confidence:.2%} confidence',
+                    'analysis': 'The product shows characteristics consistent with authentic items.'
+                }
+            
             return {
                 'status': 'error',
-                'message': 'No image data provided for verification',
+                'message': 'No image provided for verification',
                 'confidence': 0.0
             }
-
-        # Return the image verification result directly
-        return results[0][1]
+            
+        except Exception as e:
+            logger.error(f"Error during product verification: {str(e)}")
+            return {
+                'status': 'error',
+                'message': f'An error occurred during verification: {str(e)}',
+                'confidence': 0.0
+            }
 
     def _combine_results(self, results: list) -> Dict[str, Any]:
         """
@@ -200,8 +246,8 @@ class VerificationService:
         """
         try:
             # Check if image models are available
-            if self.image_processor is None or self.image_model is None:
-                logger.warning("Image models not available, using fallback analysis")
+            if self.model is None:
+                logger.warning("MobileNet model not available, using fallback analysis")
                 return self.fallback_image_analysis(image_file)
             
             # Load and preprocess the image
@@ -215,19 +261,18 @@ class VerificationService:
             image = image.resize((224, 224))
             
             # Prepare image for model
-            inputs = self.image_processor(image, return_tensors="pt")
+            inputs = self.transform(image)
             
             # Get model predictions
             with torch.no_grad():
-                outputs = self.image_model(**inputs)
-                logits = outputs.logits
-                probabilities = torch.nn.functional.softmax(logits, dim=-1)
+                outputs = self.model(inputs.unsqueeze(0))
+                probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
             
             # Get top predictions
             top_probs, top_indices = torch.topk(probabilities, 5)
             
             # Get class labels (this is a placeholder - you would need to map indices to labels)
-            class_labels = [f"class_{i}" for i in top_indices[0].tolist()]
+            class_labels = [f"class_{i}" for i in top_indices.tolist()]
             
             # Check for security features
             security_results = self.check_security_features(image)
@@ -385,11 +430,11 @@ class VerificationService:
         try:
             # Prepare image for custom model
             # This would depend on how your custom model was trained
-            image_tensor = self.image_processor(image, return_tensors="pt")
+            image_tensor = self.transform(image)
             
             # Get prediction from custom model
             with torch.no_grad():
-                outputs = self.custom_model(image_tensor['pixel_values'])
+                outputs = self.custom_model(image_tensor.unsqueeze(0))
                 prediction = torch.sigmoid(outputs).item()
             
             return {

@@ -28,6 +28,18 @@ def index(request):
     """Display the home page"""
     return render(request, 'products/index.html')
 
+@require_http_methods(["GET"])
+def health_check(request):
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Check if models are loaded
+        if not verification_service.is_ready():
+            return JsonResponse({"status": "warming_up"}, status=503)
+        return JsonResponse({"status": "ok"})
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
 @csrf_exempt
 @require_http_methods(["POST"])
 async def product_verify(request):
