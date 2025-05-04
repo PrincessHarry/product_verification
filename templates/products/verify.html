@@ -52,7 +52,7 @@
             </div>
 
             <!-- Results Section -->
-            <div id="resultsSection" class="hidden border-t border-gray-200 pt-8">
+            <div id="resultsSection" class="border-t border-gray-200 pt-8">
                 <div class="space-y-6">
                     <div class="text-center mb-8">
                         <h2 class="text-3xl font-bold text-gray-900">Authentication Report</h2>
@@ -60,77 +60,82 @@
                     </div>
                     
                     <!-- Final Verdict Section -->
-                    <div id="finalVerdictSection" class="hidden rounded-xl p-6 border-l-4 transition-all duration-300">
-                        <h4 class="text-xl font-semibold text-gray-900 mb-3">Authentication Results</h4>
-                        <p id="finalVerdict" class="text-gray-700"></p>
+                    <div class="rounded-xl p-6 border-l-4 {{ verdict_color }} mb-6">
+                        <h4 class="text-xl font-semibold mb-2">Final Verdict</h4>
+                        <p class="text-lg">{{ verdict_summary }}</p>
+                        <p class="text-sm text-gray-600 mt-2">{{ verdict_details }}</p>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-gray-50 rounded-xl p-6">
-                            <div class="flex items-center justify-between">
-                                <span class="text-lg font-medium text-gray-700">Status:</span>
-                                <span id="verificationStatus" class="text-lg font-semibold"></span>
-                            </div>
+                        <!-- Image Analysis Card -->
+                        <div class="bg-white rounded-xl shadow p-6">
+                            <h4 class="font-bold text-gray-800 mb-2">Image Analysis</h4>
+                            {% if analysis.image_analysis %}
+                                <div>Status: <span class="inline-block px-2 py-1 rounded text-white font-semibold {% if analysis.image_analysis.status == 'success' or analysis.image_analysis.status == 'original' %}bg-green-500{% elif analysis.image_analysis.status == 'warning' or analysis.image_analysis.status == 'likely_original' %}bg-blue-500{% elif analysis.image_analysis.status == 'likely_fake' %}bg-yellow-500{% else %}bg-red-500{% endif %}">{{ analysis.image_analysis.status|title }}</span></div>
+                                <div>Confidence: <span class="font-mono">{{ analysis.image_analysis.confidence|floatformat:2 }}</span></div>
+                                <ul class="mt-2 text-sm text-gray-700">
+                                    {% if analysis.image_analysis.top_predictions %}
+                                        <li><strong>Top Predictions:</strong></li>
+                                        {% for pred in analysis.image_analysis.top_predictions %}
+                                            <li>{{ pred.label }} ({{ pred.probability|floatformat:2 }})</li>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if analysis.image_analysis.security_features %}
+                                        <li><strong>Security Features:</strong></li>
+                                        {% for key, feat in analysis.image_analysis.security_features.items %}
+                                            <li>{{ key|title }}: {{ feat.description }}</li>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if analysis.image_analysis.message %}
+                                        <li><strong>Note:</strong> {{ analysis.image_analysis.message }}</li>
+                                    {% endif %}
+                                </ul>
+                            {% else %}
+                                <div class="text-gray-500">No image analysis available.</div>
+                            {% endif %}
                         </div>
-                        <div class="bg-gray-50 rounded-xl p-6">
-                            <div class="flex items-center justify-between">
-                                <span class="text-lg font-medium text-gray-700">Confidence:</span>
-                                <span id="verificationConfidence" class="text-lg font-semibold"></span>
-                            </div>
+                        <!-- AI Agent Analysis Card -->
+                        <div class="bg-white rounded-xl shadow p-6">
+                            <h4 class="font-bold text-gray-800 mb-2">AI Agent Analysis</h4>
+                            {% if analysis.ai_analysis %}
+                                <div>Status: <span class="inline-block px-2 py-1 rounded text-white font-semibold {% if analysis.ai_analysis.status == 'success' or analysis.ai_analysis.status == 'original' %}bg-green-500{% elif analysis.ai_analysis.status == 'warning' or analysis.ai_analysis.status == 'likely_original' %}bg-blue-500{% elif analysis.ai_analysis.status == 'likely_fake' %}bg-yellow-500{% else %}bg-red-500{% endif %}">{{ analysis.ai_analysis.status|title }}</span></div>
+                                <div>Confidence: <span class="font-mono">{{ analysis.ai_analysis.confidence|floatformat:2 }}</span></div>
+                                <ul class="mt-2 text-sm text-gray-700">
+                                    {% if analysis.ai_analysis.message %}
+                                        <li>{{ analysis.ai_analysis.message }}</li>
+                                    {% endif %}
+                                    {% if analysis.ai_analysis.reasoning %}
+                                        <li><strong>Reasoning:</strong> {{ analysis.ai_analysis.reasoning }}</li>
+                                    {% endif %}
+                                </ul>
+                            {% else %}
+                                <div class="text-gray-500">No AI agent analysis available.</div>
+                            {% endif %}
                         </div>
                     </div>
 
+                    <!-- Product Details Section -->
                     <div class="bg-gray-50 rounded-xl p-6">
                         <h4 class="text-xl font-semibold text-gray-900 mb-4">Product Details</h4>
                         <div class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <span class="text-sm font-medium text-gray-600">Name:</span>
-                                    <p id="productName" class="text-lg text-gray-900"></p>
+                                    <p class="text-lg text-gray-900">{{ product_details.name }}</p>
                                 </div>
                                 <div>
                                     <span class="text-sm font-medium text-gray-600">Manufacturer:</span>
-                                    <p id="productManufacturer" class="text-lg text-gray-900"></p>
+                                    <p class="text-lg text-gray-900">{{ product_details.manufacturer }}</p>
                                 </div>
                             </div>
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Product Code:</span>
-                                <p id="productCode" class="text-lg text-gray-900"></p>
+                                <p class="text-lg text-gray-900">{{ product_details.product_code }}</p>
                             </div>
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Description:</span>
-                                <p id="productDescription" class="text-lg text-gray-900 mt-1"></p>
+                                <p class="text-lg text-gray-900 mt-1">{{ product_details.description }}</p>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-xl p-6">
-                        <h4 class="text-xl font-semibold text-gray-900 mb-4">Analysis Details</h4>
-                        <div id="analysisDetails" class="prose prose-sm max-w-none">
-                            <style>
-                                #analysisDetails strong {
-                                    color: #1f2937;
-                                    font-weight: 600;
-                                }
-                                #analysisDetails ul {
-                                    margin-top: 0.5rem;
-                                    margin-bottom: 0.5rem;
-                                }
-                                #analysisDetails li {
-                                    margin-bottom: 0.5rem;
-                                    position: relative;
-                                    padding-left: 1.5rem;
-                                }
-                                #analysisDetails li:before {
-                                    content: "•";
-                                    position: absolute;
-                                    left: 0;
-                                    color: #2563eb;
-                                }
-                                #analysisDetails br {
-                                    margin-bottom: 0.75rem;
-                                }
-                            </style>
                         </div>
                     </div>
 
@@ -154,7 +159,7 @@
                                 <label for="product_name" class="block text-lg font-medium text-gray-700 mb-2">Product Name</label>
                                 <input type="text" name="product_name" id="product_name" 
                                     class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-lg"
-                                    placeholder="e.g., Nike Air Max 270">
+                                    placeholder="e.g., Peak Milk">
                             </div>
 
                             <div class="flex justify-center space-x-4 mb-6">

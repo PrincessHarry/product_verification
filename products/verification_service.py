@@ -1,20 +1,14 @@
 from typing import Dict, Any, Optional
-import requests
-from bs4 import BeautifulSoup
-import json
 import os
 from dotenv import load_dotenv
 import logging
-import base64
 import torch
 from torchvision import transforms, models
 from PIL import Image
-import io
 import numpy as np
-import cv2
 from .model_training import ProductVerificationModel, extract_features
-from transformers import AutoImageProcessor, AutoModelForImageClassification
 from .ai_agents.image_agent import ImageVerificationAgent
+from .ai_agents.product_verification_agent import ProductVerificationAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +20,6 @@ load_dotenv()
 class VerificationService:
     def __init__(self):
         """Initialize the verification service with required models and settings"""
-        self.api_key = os.getenv('GOOGLE_API_KEY')
-        self.gs1_api_key = os.getenv('GS1_API_KEY')
-        self.manufacturer_api_key = os.getenv('MANUFACTURER_API_KEY')
-        
         # Initialize image analysis models
         try:
             logger.info("Loading image analysis models...")
@@ -75,7 +65,9 @@ class VerificationService:
             self.custom_model = None
             logger.warning("Custom verification model not found")
 
+        # Initialize AI agents
         self.image_agent = ImageVerificationAgent()
+        self.product_agent = ProductVerificationAgent()
 
     async def verify_product(
         self,
@@ -83,19 +75,29 @@ class VerificationService:
         product_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Verify a product using image analysis
+        Verify a product using multiple verification methods
         """
         results = []
         
         # Verify by image if provided
         if image_data:
             try:
+                # Use traditional image analysis
                 image_result = await self.image_agent.verify_authenticity(
                     image_data=image_data,
                     product_name=product_name
                 )
-                results.append(('image', image_result))
+                results.append(('image_analysis', image_result))
+                
+                # Use AI agent for detailed analysis (non-async)
+                ai_result = self.product_agent.verify_product(
+                    image_data=image_data,
+                    product_name=product_name
+                )
+                results.append(('ai_analysis', ai_result))
+                
             except Exception as e:
+                logger.error(f"Error during image verification: {str(e)}")
                 results.append(('image', {
                     'status': 'error',
                     'message': str(e),
@@ -110,12 +112,12 @@ class VerificationService:
                 'confidence': 0.0
             }
 
-        # Return the image verification result directly
-        return results[0][1]
+        # Combine results from all verification methods
+        return self._combine_results(results)
 
     def _combine_results(self, results: list) -> Dict[str, Any]:
         """
-        Combine results from multiple verification methods
+        Combine results from multiple verification methods in a professional, collaborative, and user-friendly way.
         """
         if not results:
             return {
@@ -124,30 +126,100 @@ class VerificationService:
                 'confidence': 0.0
             }
 
-        # Calculate overall confidence
-        total_confidence = sum(result[1]['confidence'] for result in results)
-        avg_confidence = total_confidence / len(results)
+        # Separate results for clarity
+        image_result = next((r[1] for r in results if r[0] == 'image_analysis'), None)
+        ai_result = next((r[1] for r in results if r[0] == 'ai_analysis'), None)
 
-        # Determine overall status
-        statuses = [result[1]['status'] for result in results]
-        if all(status == 'success' for status in statuses):
-            status = 'success'
-        elif any(status == 'error' for status in statuses):
-            status = 'error'
+        # Default values
+        final_status = 'uncertain'
+        final_confidence = 0.0
+        verdict_lines = []
+        product_details = None
+        analysis = {}
+
+        # 1. Gather confidences and statuses
+        confidences = []
+        statuses = []
+        if image_result:
+            confidences.append(image_result.get('confidence', 0.0))
+            statuses.append(image_result.get('status', 'error'))
+            analysis['image_analysis'] = image_result
+        if ai_result:
+            confidences.append(ai_result.get('confidence', 0.0))
+            statuses.append(ai_result.get('status', 'error'))
+            analysis['ai_analysis'] = ai_result
+
+        # 2. Weighted or rule-based combination
+        if image_result and ai_result:
+            # If both are strong, trust the stronger one more
+            if image_result['confidence'] >= 0.8 and ai_result['confidence'] >= 0.8:
+                final_status = 'original'
+                final_confidence = (image_result['confidence'] + ai_result['confidence']) / 2
+                verdict_lines.append("Both image analysis and AI agent strongly indicate the product is authentic.")
+            elif image_result['confidence'] < 0.5 and ai_result['confidence'] < 0.5:
+                final_status = 'fake'
+                final_confidence = (image_result['confidence'] + ai_result['confidence']) / 2
+                verdict_lines.append("Both image analysis and AI agent indicate the product is likely counterfeit.")
+            else:
+                # If one is strong and the other is weak, be cautious
+                final_confidence = (image_result['confidence'] + ai_result['confidence']) / 2
+                if image_result['confidence'] > ai_result['confidence']:
+                    final_status = 'likely_original' if image_result['confidence'] >= 0.7 else 'likely_fake'
+                    verdict_lines.append("Image analysis is more confident than the AI agent. Please provide more details for a conclusive result.")
+                else:
+                    final_status = 'likely_original' if ai_result['confidence'] >= 0.7 else 'likely_fake'
+                    verdict_lines.append("AI agent is more confident than image analysis. Please provide more details for a conclusive result.")
+        elif image_result:
+            final_confidence = image_result['confidence']
+            if image_result['confidence'] >= 0.8:
+                final_status = 'original'
+                verdict_lines.append("Image analysis strongly indicates the product is authentic.")
+            elif image_result['confidence'] < 0.5:
+                final_status = 'fake'
+                verdict_lines.append("Image analysis indicates the product is likely counterfeit.")
+            else:
+                final_status = 'likely_original' if image_result['confidence'] >= 0.7 else 'likely_fake'
+                verdict_lines.append("Image analysis is inconclusive. Please provide more details.")
+        elif ai_result:
+            final_confidence = ai_result['confidence']
+            if ai_result['confidence'] >= 0.8:
+                final_status = 'original'
+                verdict_lines.append("AI agent strongly indicates the product is authentic.")
+            elif ai_result['confidence'] < 0.5:
+                final_status = 'fake'
+                verdict_lines.append("AI agent indicates the product is likely counterfeit.")
+            else:
+                final_status = 'likely_original' if ai_result['confidence'] >= 0.7 else 'likely_fake'
+                verdict_lines.append("AI agent is inconclusive. Please provide more details.")
         else:
-            status = 'warning'
+            final_status = 'error'
+            final_confidence = 0.0
+            verdict_lines.append("No valid analysis could be performed.")
 
-        # Combine messages
-        messages = [result[1]['message'] for result in results]
-        combined_message = ' | '.join(messages)
+        # 3. Compose a professional, actionable message
+        if ai_result and 'message' in ai_result:
+            verdict_lines.append(f"AI Agent: {ai_result['message']}")
+        if image_result and 'message' in image_result:
+            verdict_lines.append(f"Image Analysis: {image_result['message']}")
 
-        return {
-            'status': status,
-            'message': combined_message,
-            'confidence': avg_confidence,
-            'details': {
-                method: result for method, result in results
+        # 4. Product details (if available from AI agent)
+        if ai_result and 'details' in ai_result and isinstance(ai_result['details'], dict):
+            product_details = ai_result['details']
+        else:
+            product_details = {
+                'name': '',
+                'manufacturer': '',
+                'product_code': '',
+                'description': ''
             }
+
+        # 5. Return structured, user-friendly response
+        return {
+            'status': final_status,
+            'message': '\n'.join(verdict_lines),
+            'confidence': final_confidence,
+            'product_details': product_details,
+            'analysis': analysis
         }
 
     def verify_barcode(self, barcode):

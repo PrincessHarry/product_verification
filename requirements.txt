@@ -52,7 +52,7 @@ mdurl==0.1.2
 mpmath==1.3.0
 multidict==6.2.0
 networkx==3.4.2
-numpy==2.2.4
+numpy==1.24.3
 opencv-python==4.11.0.86
 outcome==1.3.0.post0
 packaging==24.2
@@ -113,3 +113,4 @@ websockets==15.0.1
 whitenoise==6.9.0
 wsproto==1.2.0
 yarl==1.18.3
+duckduckgo-search==4.1.1

@@ -54,30 +54,45 @@ async def product_verify(request):
         
         # Validate input
         if not image:
-            return JsonResponse({
+            context = {
+                'verdict_color': 'border-red-500 bg-red-50',
+                'verdict_summary': 'Image is required for verification.',
+                'verdict_details': '',
                 'status': 'error',
-                'message': 'Image is required for verification',
-                'confidence': 0.0
-            }, status=400)
+                'confidence': 0.0,
+                'product_details': {},
+                'analysis': {},
+            }
+            return render(request, 'products/verify.html', context)
         
         # Process image if provided
         if image:
             # Check file size (limit to 5MB)
             if image.size > 5 * 1024 * 1024:
-                return JsonResponse({
+                context = {
+                    'verdict_color': 'border-red-500 bg-red-50',
+                    'verdict_summary': 'Image file too large. Maximum size is 5MB.',
+                    'verdict_details': '',
                     'status': 'error',
-                    'message': 'Image file too large. Maximum size is 5MB.',
-                    'confidence': 0.0
-                }, status=400)
+                    'confidence': 0.0,
+                    'product_details': {},
+                    'analysis': {},
+                }
+                return render(request, 'products/verify.html', context)
             
             # Check file type
             allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
             if image.content_type not in allowed_types:
-                return JsonResponse({
+                context = {
+                    'verdict_color': 'border-red-500 bg-red-50',
+                    'verdict_summary': 'Invalid image format. Please upload a JPEG or PNG image.',
+                    'verdict_details': '',
                     'status': 'error',
-                    'message': 'Invalid image format. Please upload a JPEG or PNG image.',
-                    'confidence': 0.0
-                }, status=400)
+                    'confidence': 0.0,
+                    'product_details': {},
+                    'analysis': {},
+                }
+                return render(request, 'products/verify.html', context)
             
             # Ensure the image directory exists
             media_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'media')
@@ -93,11 +108,41 @@ async def product_verify(request):
         # Log result
         logger.info(f"Verification result: status={result.get('status')}, confidence={result.get('confidence')}")
         
+        # Map status to color and summary
+        status_map = {
+            'original':   ('border-green-500 bg-green-50', 'Product is authentic.'),
+            'likely_original': ('border-blue-500 bg-blue-50', 'Product is likely authentic, but more evidence is recommended.'),
+            'likely_fake': ('border-yellow-500 bg-yellow-50', 'Product may be counterfeit. Please review the analysis.'),
+            'fake': ('border-red-500 bg-red-50', 'Product is likely counterfeit.'),
+            'uncertain': ('border-gray-500 bg-gray-50', 'Unable to determine authenticity with current information.'),
+            'error': ('border-red-500 bg-red-50', 'Verification failed. See details below.'),
+        }
+        verdict_color, verdict_summary = status_map.get(result.get('status', 'uncertain'), status_map['uncertain'])
+        verdict_details = result.get('message', '')
+        
+        context = {
+            'verdict_color': verdict_color,
+            'verdict_summary': verdict_summary,
+            'verdict_details': verdict_details,
+            'status': result.get('status', ''),
+            'confidence': f"{float(result.get('confidence', 0.0)) * 100:.1f}%",
+            'product_details': result.get('product_details', {}),
+            'analysis': result.get('analysis', {}),
+        }
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse(result)
+        else:
+            return render(request, 'products/verify.html', context)
     except Exception as e:
         logger.error(f"Error during product verification: {str(e)}")
-        return JsonResponse({
+        context = {
+            'verdict_color': 'border-red-500 bg-red-50',
+            'verdict_summary': 'An error occurred during verification.',
+            'verdict_details': str(e),
             'status': 'error',
-            'message': f'An error occurred during verification: {str(e)}',
-            'confidence': 0.0
-        }, status=500)
+            'confidence': 0.0,
+            'product_details': {},
+            'analysis': {},
+        }
+        return render(request, 'products/verify.html', context)
