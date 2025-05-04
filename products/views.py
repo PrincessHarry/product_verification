@@ -130,8 +130,9 @@ async def product_verify(request):
             'analysis': result.get('analysis', {}),
         }
 
+        # Check if request is AJAX
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return JsonResponse(result)
+            return JsonResponse(result)
         else:
             return render(request, 'products/verify.html', context)
     except Exception as e:
