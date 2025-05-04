@@ -289,15 +289,15 @@
                 // Show loading overlay
                 loadingOverlay.classList.remove('hidden');
                 
-                const formData = new FormData();
-                const blob = dataURLtoBlob(preview.src);
-                formData.append('image', blob, 'captured_image.jpg');
-                formData.append('product_name', document.getElementById('product_name').value);
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-                
+            const formData = new FormData();
+            const blob = dataURLtoBlob(preview.src);
+            formData.append('image', blob, 'captured_image.jpg');
+            formData.append('product_name', document.getElementById('product_name').value);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            
                 const response = await fetch(e.target.action, {
-                    method: 'POST',
-                    body: formData
+                method: 'POST',
+                body: formData
                 });
                 
                 const data = await response.json();

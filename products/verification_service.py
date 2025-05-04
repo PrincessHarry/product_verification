@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import logging
 import base64
 import torch
+from torchvision import transforms, models
 from PIL import Image
 import io
 import numpy as np
@@ -14,7 +15,6 @@ import cv2
 from .model_training import ProductVerificationModel, extract_features
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from .ai_agents.image_agent import ImageVerificationAgent
-from .web_search_service import WebSearchService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,15 +27,30 @@ class VerificationService:
     def __init__(self):
         """Initialize the verification service with required models and settings"""
         self.api_key = os.getenv('GOOGLE_API_KEY')
-        if not self.api_key:
-            logger.warning("GOOGLE_API_KEY environment variable is not set. Gemini API features will not work.")
+        self.gs1_api_key = os.getenv('GS1_API_KEY')
+        self.manufacturer_api_key = os.getenv('MANUFACTURER_API_KEY')
         
-        # Initialize models lazily to save memory
-        self._model = None
-        self._transform = None
-        self._custom_model = None
-        
-        # Security feature templates
+        # Initialize image analysis models
+        try:
+            logger.info("Loading image analysis models...")
+            # Load MobileNet model
+            self.image_model = models.mobilenet_v2(pretrained=True)
+            self.image_model.eval()
+            
+            # Define image preprocessing
+            self.preprocess = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+            logger.info("Image analysis models loaded successfully")
+        except Exception as e:
+            logger.error(f"Error loading image models: {str(e)}")
+            self.image_model = None
+            self.preprocess = None
+            
+        # Security feature templates (example features to look for)
         self.security_features = {
             'hologram': ['holographic', 'rainbow', 'iridescent'],
             'watermark': ['watermark', 'embedded', 'hidden'],
@@ -44,208 +59,59 @@ class VerificationService:
             'texture': ['texture', 'embossed', 'raised'],
             'seal': ['seal', 'tamper-evident', 'security seal']
         }
-
-        self.image_agent = ImageVerificationAgent()
-        self.web_search_service = WebSearchService()
-
-    def _load_model(self):
-        """Load MobileNet model when needed"""
-        if self._model is None:
+        
+        # Load custom model if available
+        self.custom_model_path = os.path.join('models', 'product_verification_model.pth')
+        if os.path.exists(self.custom_model_path):
             try:
-                logger.info("Loading MobileNet model...")
-                from torchvision import models
-                self._model = models.mobilenet_v2(pretrained=True)
-                self._model.eval()
-                logger.info("MobileNet model loaded successfully")
-            except Exception as e:
-                logger.error(f"Error loading MobileNet model: {str(e)}")
-                self._model = None
-
-    def _load_transform(self):
-        """Load image transforms when needed"""
-        if self._transform is None:
-            try:
-                from torchvision import transforms
-                self._transform = transforms.Compose([
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                                      std=[0.229, 0.224, 0.225])
-                ])
-            except Exception as e:
-                logger.error(f"Error creating transforms: {str(e)}")
-                self._transform = None
-
-    def _load_custom_model(self):
-        """Load custom model when needed"""
-        if self._custom_model is None:
-            try:
-                custom_model_path = os.path.join('models', 'product_verification_model.pth')
-                if os.path.exists(custom_model_path):
-                    logger.info(f"Loading custom model from {custom_model_path}")
-                    self._custom_model = torch.load(custom_model_path)
-                    self._custom_model.eval()
-                    logger.info("Custom verification model loaded successfully")
+                logger.info(f"Loading custom model from {self.custom_model_path}")
+                self.custom_model = torch.load(self.custom_model_path)
+                self.custom_model.eval()
+                logger.info("Custom verification model loaded successfully")
             except Exception as e:
                 logger.error(f"Error loading custom model: {str(e)}")
-                self._custom_model = None
+                self.custom_model = None
+        else:
+            self.custom_model = None
+            logger.warning("Custom verification model not found")
 
-    def is_ready(self) -> bool:
-        """Check if the service is ready to handle requests"""
-        self._load_model()
-        self._load_transform()
-        return self._model is not None and self._transform is not None
+        self.image_agent = ImageVerificationAgent()
 
     async def verify_product(
         self,
         image_data: Optional[bytes] = None,
         product_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Verify a product using multiple verification methods"""
-        try:
-            if not self.is_ready():
-                return {
-                    'status': 'error',
-                    'message': 'Service is not ready. Please try again in a few moments.',
-                    'confidence': 0.0
-                }
-
-            if image_data:
-                # Convert image data to PIL Image
-                image = Image.open(io.BytesIO(image_data))
-                
-                # 1. Traditional Image Analysis
-                try:
-                    input_tensor = self._transform(image)
-                    input_batch = input_tensor.unsqueeze(0)
-                    
-                    # Move to CPU to save memory
-                    input_batch = input_batch.to('cpu')
-                    self._model.to('cpu')
-                    
-                    with torch.no_grad():
-                        output = self._model(input_batch)
-                    
-                    probabilities = torch.nn.functional.softmax(output[0], dim=0)
-                    top_prob, top_class = torch.max(probabilities, 0)
-                    image_confidence = top_prob.item()
-                except Exception as e:
-                    logger.error(f"Error in image analysis: {str(e)}")
-                    image_confidence = 0.0
-                
-                # 2. Security Feature Analysis
-                try:
-                    security_results = self.check_security_features(image)
-                    security_confidence = self._calculate_security_confidence(security_results)
-                except Exception as e:
-                    logger.error(f"Error in security feature analysis: {str(e)}")
-                    security_confidence = 0.0
-                
-                # 3. Custom Model Analysis (if available)
-                custom_confidence = 0.0
-                if self._custom_model is not None:
-                    try:
-                        custom_result = self.analyze_with_custom_model(image)
-                        if custom_result:
-                            custom_confidence = custom_result.get('confidence', 0.0)
-                    except Exception as e:
-                        logger.error(f"Error in custom model analysis: {str(e)}")
-                
-                # 4. Web Search Analysis
-                try:
-                    web_analysis = await self.web_search_service.analyze_web_content(
-                        image_data=image_data,
-                        product_name=product_name
-                    )
-                    web_confidence = web_analysis.get('confidence', 0.0)
-                except Exception as e:
-                    logger.error(f"Error in web search analysis: {str(e)}")
-                    web_confidence = 0.0
-                
-                # Combine all results with error handling
-                results = [
-                    ('image_analysis', {'confidence': image_confidence}),
-                    ('security_features', {'confidence': security_confidence}),
-                    ('custom_model', {'confidence': custom_confidence}),
-                    ('web_search', {'confidence': web_confidence})
-                ]
-                
-                # Calculate weighted confidence
-                weights = {
-                    'image_analysis': 0.4,
-                    'security_features': 0.3,
-                    'custom_model': 0.2,
-                    'web_search': 0.1
-                }
-                
-                weighted_confidence = sum(
-                    weights[method] * result['confidence']
-                    for method, result in results
-                )
-                
-                # Determine final status
-                if weighted_confidence > 0.8:
-                    status = 'original'
-                elif weighted_confidence > 0.6:
-                    status = 'likely_original'
-                elif weighted_confidence > 0.4:
-                    status = 'likely_fake'
-                else:
-                    status = 'fake'
-                
-                # Prepare detailed analysis
-                analysis = {
-                    'image_analysis': f'Traditional image analysis confidence: {image_confidence:.2%}',
-                    'security_features': security_results,
-                    'custom_model': f'Custom model confidence: {custom_confidence:.2%}',
-                    'web_search': web_analysis.get('analysis', 'No web search results available') if 'web_analysis' in locals() else 'Web search analysis failed'
-                }
-                
-                return {
-                    'status': status,
-                    'confidence': weighted_confidence,
-                    'message': f'Comprehensive verification completed with {weighted_confidence:.2%} confidence',
-                    'analysis': analysis,
-                    'details': {
-                        'traditional_confidence': image_confidence,
-                        'security_confidence': security_confidence,
-                        'custom_model_confidence': custom_confidence,
-                        'web_search_confidence': web_confidence
-                    }
-                }
-            
-            return {
-                'status': 'error',
-                'message': 'No image provided for verification',
-                'confidence': 0.0
-            }
-            
-        except Exception as e:
-            logger.error(f"Error during product verification: {str(e)}")
-            return {
-                'status': 'error',
-                'message': f'An error occurred during verification: {str(e)}',
-                'confidence': 0.0
-            }
-
-    def _calculate_security_confidence(self, security_results: Dict) -> float:
-        """Calculate confidence score based on security feature analysis"""
-        if not security_results:
-            return 0.0
-            
-        # Count detected security features
-        detected_features = sum(
-            1 for feature in security_results.values()
-            if feature.get('present', False)
-        )
+        """
+        Verify a product using image analysis
+        """
+        results = []
         
-        # Calculate confidence based on number of detected features
-        total_features = len(security_results)
-        if total_features == 0:
-            return 0.0
-            
-        return detected_features / total_features
+        # Verify by image if provided
+        if image_data:
+            try:
+                image_result = await self.image_agent.verify_authenticity(
+                    image_data=image_data,
+                    product_name=product_name
+                )
+                results.append(('image', image_result))
+            except Exception as e:
+                results.append(('image', {
+                    'status': 'error',
+                    'message': str(e),
+                    'confidence': 0.0
+                }))
+
+        # If no verification method provided
+        if not results:
+            return {
+                'status': 'error',
+                'message': 'No image data provided for verification',
+                'confidence': 0.0
+            }
+
+        # Return the image verification result directly
+        return results[0][1]
 
     def _combine_results(self, results: list) -> Dict[str, Any]:
         """
@@ -343,8 +209,8 @@ class VerificationService:
         """
         try:
             # Check if image models are available
-            if self._model is None:
-                logger.warning("MobileNet model not available, using fallback analysis")
+            if self.image_model is None or self.preprocess is None:
+                logger.warning("Image models not available, using fallback analysis")
                 return self.fallback_image_analysis(image_file)
             
             # Load and preprocess the image
@@ -358,25 +224,25 @@ class VerificationService:
             image = image.resize((224, 224))
             
             # Prepare image for model
-            inputs = self._transform(image)
+            inputs = self.preprocess(image)
             
             # Get model predictions
             with torch.no_grad():
-                outputs = self._model(inputs.unsqueeze(0))
-                probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+                outputs = self.image_model(inputs.unsqueeze(0))
+                probabilities = torch.nn.functional.softmax(outputs, dim=1)
             
             # Get top predictions
             top_probs, top_indices = torch.topk(probabilities, 5)
             
             # Get class labels (this is a placeholder - you would need to map indices to labels)
-            class_labels = [f"class_{i}" for i in top_indices.tolist()]
+            class_labels = [f"class_{i}" for i in top_indices[0].tolist()]
             
             # Check for security features
             security_results = self.check_security_features(image)
             
             # Use custom model if available
             custom_result = None
-            if self._custom_model is not None:
+            if self.custom_model is not None:
                 custom_result = self.analyze_with_custom_model(image)
             
             # Combine results
@@ -527,11 +393,11 @@ class VerificationService:
         try:
             # Prepare image for custom model
             # This would depend on how your custom model was trained
-            image_tensor = self._transform(image)
+            inputs = self.preprocess(image)
             
             # Get prediction from custom model
             with torch.no_grad():
-                outputs = self._custom_model(image_tensor.unsqueeze(0))
+                outputs = self.custom_model(inputs.unsqueeze(0))
                 prediction = torch.sigmoid(outputs).item()
             
             return {
