@@ -1,0 +1,25 @@
+# Core framework
+Django
+djangorestframework
+django-cors-headers
+
+# Database URL parsing (Postgres in production, SQLite in dev)
+dj-database-url
+
+# Production server & static files
+gunicorn
+whitenoise
+
+# Env config
+python-dotenv
+
+# AI (OpenRouter - free vision models) + barcode database lookups
+requests
+
+# Image handling
+Pillow
+
+# Barcode / QR detection
+opencv-python-headless
+numpy
+pyzbar

@@ -1,0 +1,558 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify a Product - Product Verification System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tab-btn { transition: all 0.2s ease; }
+    .tab-btn.active { background-color: #065f46; color: white; }
+    .tab-btn:not(.active) { background-color: #f3f4f6; color: #4b5563; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .drop-zone { border: 2px dashed #d1d5db; transition: all 0.2s ease; }
+    .drop-zone.dragover { border-color: #065f46; background-color: #ecfdf5; }
+    .confidence-bar-track { background-color: #e5e7eb; }
+    .spinner {
+        border: 3px solid #e5e7eb;
+        border-top-color: #065f46;
+        border-radius: 50%;
+        width: 2rem; height: 2rem;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900">Verify a product</h1>
+        <p class="mt-2 text-gray-500">Upload a photo, use your camera, or scan a barcode / QR code.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex flex-wrap gap-2 mb-6 justify-center">
+        <button type="button" data-tab="upload" class="tab-btn active px-5 py-2 rounded-md text-sm font-medium">
+            <i class="fas fa-upload mr-2"></i>Upload Photo
+        </button>
+        <button type="button" data-tab="camera" class="tab-btn px-5 py-2 rounded-md text-sm font-medium">
+            <i class="fas fa-camera mr-2"></i>Use Camera
+        </button>
+        <button type="button" data-tab="barcode" class="tab-btn px-5 py-2 rounded-md text-sm font-medium">
+            <i class="fas fa-barcode mr-2"></i>Scan Barcode
+        </button>
+    </div>
+
+    <div class="bg-white shadow-soft rounded-xl p-6 sm:p-8">
+        <!-- Shared product name hint -->
+        <div class="mb-5">
+            <label for="product-name-input" class="block text-sm font-medium text-gray-700 mb-1">
+                Product name <span class="text-gray-400 font-normal">(optional, helps the AI)</span>
+            </label>
+            <input type="text" id="product-name-input" placeholder="e.g. Peak Milk 400g, Samsung A14 charger..."
+                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm px-3 py-2 border">
+        </div>
+
+        <!-- Upload panel -->
+        <div class="tab-panel active" id="panel-upload">
+            <div id="upload-drop-zone" class="drop-zone rounded-lg p-10 text-center cursor-pointer">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600">Drag &amp; drop an image here, or click to browse</p>
+                <p class="text-xs text-gray-400 mt-1">JPEG, PNG, or WEBP - up to 8MB</p>
+                <input type="file" id="upload-input" accept="image/jpeg,image/png,image/webp" class="hidden">
+            </div>
+            <div id="upload-preview-wrap" class="hidden mt-4 text-center">
+                <img id="upload-preview" class="max-h-72 mx-auto rounded-lg shadow-sm" alt="Preview">
+                <button type="button" id="upload-clear-btn" class="mt-3 text-sm text-gray-500 hover:text-red-600">
+                    <i class="fas fa-times mr-1"></i>Remove image
+                </button>
+            </div>
+            <button type="button" id="upload-verify-btn" disabled
+                class="mt-5 w-full flex items-center justify-center px-6 py-3 rounded-md text-white font-medium bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition">
+                <i class="fas fa-shield-check mr-2"></i>Verify Product
+            </button>
+        </div>
+
+        <!-- Camera panel -->
+        <div class="tab-panel" id="panel-camera">
+            <div class="relative rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center">
+                <video id="camera-video" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+                <img id="camera-preview" class="w-full h-full object-cover hidden" alt="Captured">
+                <p id="camera-placeholder" class="text-gray-300 text-sm">
+                    <i class="fas fa-camera text-3xl block mb-2 text-center"></i>Camera preview will appear here
+                </p>
+            </div>
+            <div class="flex gap-3 mt-4">
+                <button type="button" id="camera-start-btn" class="flex-1 px-4 py-2.5 rounded-md bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 text-sm">
+                    <i class="fas fa-video mr-2"></i>Start Camera
+                </button>
+                <button type="button" id="camera-snap-btn" class="hidden flex-1 px-4 py-2.5 rounded-md bg-primary text-white font-medium hover:bg-primary-dark text-sm">
+                    <i class="fas fa-camera mr-2"></i>Snap Photo
+                </button>
+                <button type="button" id="camera-retake-btn" class="hidden flex-1 px-4 py-2.5 rounded-md bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 text-sm">
+                    <i class="fas fa-redo mr-2"></i>Retake
+                </button>
+            </div>
+            <button type="button" id="camera-verify-btn" disabled
+                class="mt-5 w-full flex items-center justify-center px-6 py-3 rounded-md text-white font-medium bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition">
+                <i class="fas fa-shield-check mr-2"></i>Verify Product
+            </button>
+        </div>
+
+        <!-- Barcode panel -->
+        <div class="tab-panel" id="panel-barcode">
+            <div class="relative rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center">
+                <video id="barcode-video" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+                <p id="barcode-placeholder" class="text-gray-300 text-sm px-6 text-center">
+                    <i class="fas fa-barcode text-3xl block mb-2"></i>Live scanning starts here (if your browser supports it)
+                </p>
+            </div>
+            <div class="flex gap-3 mt-4">
+                <button type="button" id="barcode-start-btn" class="flex-1 px-4 py-2.5 rounded-md bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 text-sm">
+                    <i class="fas fa-video mr-2"></i>Start Scanning
+                </button>
+                <button type="button" id="barcode-stop-btn" class="hidden flex-1 px-4 py-2.5 rounded-md bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 text-sm">
+                    <i class="fas fa-stop mr-2"></i>Stop
+                </button>
+            </div>
+            <p id="barcode-status" class="text-sm text-gray-500 mt-3 text-center"></p>
+
+            <div class="mt-6 pt-6 border-t border-gray-100">
+                <label for="barcode-manual-input" class="block text-sm font-medium text-gray-700 mb-1">
+                    Or type/paste the barcode number
+                </label>
+                <div class="flex gap-2">
+                    <input type="text" id="barcode-manual-input" placeholder="e.g. 6154000123456"
+                        class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm px-3 py-2 border">
+                    <button type="button" id="barcode-manual-verify-btn"
+                        class="px-5 py-2 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary-dark">
+                        Check
+                    </button>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">
+                    No live scanner on your device? Snap a clear photo of the barcode on the
+                    <button type="button" class="text-primary underline" onclick="document.querySelector('[data-tab=camera]').click()">Use Camera</button> tab instead.
+                </p>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-state" class="hidden mt-6 flex flex-col items-center justify-center py-8">
+            <div class="spinner"></div>
+            <p class="mt-3 text-sm text-gray-500">Analyzing product... this can take up to 30 seconds</p>
+        </div>
+
+        <!-- Error -->
+        <div id="error-state" class="hidden mt-6 bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
+            <i class="fas fa-triangle-exclamation mr-2"></i><span id="error-message"></span>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-section" class="hidden mt-8 bg-white shadow-soft rounded-xl p-6 sm:p-8">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
+            <h2 class="text-xl font-bold text-gray-900">Verification result</h2>
+            <span id="result-status-badge" class="status-badge text-sm font-semibold px-3 py-1.5 rounded-full"></span>
+        </div>
+
+        <div class="mb-5">
+            <div class="flex items-center justify-between text-sm text-gray-500 mb-1">
+                <span>Confidence</span>
+                <span id="result-confidence-text" class="font-medium text-gray-700"></span>
+            </div>
+            <div class="w-full h-2.5 rounded-full confidence-bar-track overflow-hidden">
+                <div id="result-confidence-bar" class="h-full rounded-full bg-primary transition-all duration-700" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <p id="result-message" class="text-gray-700 mb-5"></p>
+
+        <div id="result-product-details" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5 hidden">
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold">Product</p>
+                <p id="result-product-name" class="text-sm text-gray-800 mt-0.5">-</p>
+            </div>
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold">Manufacturer</p>
+                <p id="result-product-manufacturer" class="text-sm text-gray-800 mt-0.5">-</p>
+            </div>
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold">Category</p>
+                <p id="result-product-category" class="text-sm text-gray-800 mt-0.5">-</p>
+            </div>
+        </div>
+
+        <div id="result-barcode-block" class="hidden mb-5 bg-gray-50 rounded-lg p-4 text-sm">
+            <p class="font-semibold text-gray-700 mb-1"><i class="fas fa-barcode mr-1"></i>Barcode check</p>
+            <p id="result-barcode-text" class="text-gray-600"></p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div id="result-security-block" class="hidden">
+                <p class="font-semibold text-sm text-gray-700 mb-2"><i class="fas fa-check-circle text-green-500 mr-1"></i>Security features observed</p>
+                <ul id="result-security-list" class="text-sm text-gray-600 space-y-1 list-disc list-inside"></ul>
+            </div>
+            <div id="result-flags-block" class="hidden">
+                <p class="font-semibold text-sm text-gray-700 mb-2"><i class="fas fa-flag text-orange-500 mr-1"></i>Red flags</p>
+                <ul id="result-flags-list" class="text-sm text-gray-600 space-y-1 list-disc list-inside"></ul>
+            </div>
+        </div>
+
+        <div id="result-recommendation-block" class="hidden mt-5 bg-amber-50 border border-amber-100 rounded-lg p-4 text-sm text-amber-800">
+            <i class="fas fa-lightbulb mr-2"></i><span id="result-recommendation-text"></span>
+        </div>
+
+        <p id="result-model-used" class="mt-5 text-xs text-gray-400"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const csrfToken = "{{ csrf_token }}";
+    const productNameInput = document.getElementById('product-name-input');
+
+    // ---------- Tabs ----------
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-panel');
+    tabButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach((b) => b.classList.remove('active'));
+            panels.forEach((p) => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+            stopBarcodeScanning();
+            stopCameraStream();
+        });
+    });
+
+    // ---------- Shared UI helpers ----------
+    const loadingState = document.getElementById('loading-state');
+    const errorState = document.getElementById('error-state');
+    const errorMessage = document.getElementById('error-message');
+    const resultsSection = document.getElementById('results-section');
+
+    function showLoading() {
+        loadingState.classList.remove('hidden');
+        errorState.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+    }
+    function showError(message) {
+        loadingState.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        errorMessage.textContent = message;
+    }
+    function hideLoading() {
+        loadingState.classList.add('hidden');
+    }
+
+    const STATUS_LABELS = {
+        authentic: 'Authentic', likely_authentic: 'Likely Authentic', uncertain: 'Uncertain',
+        no_barcode: 'No Barcode Found', likely_counterfeit: 'Likely Counterfeit',
+        counterfeit: 'Counterfeit', error: 'Error',
+    };
+
+    function renderResults(data) {
+        hideLoading();
+        errorState.classList.add('hidden');
+
+        if (data.status === 'error') {
+            showError(data.message || 'Something went wrong during verification.');
+            return;
+        }
+
+        resultsSection.classList.remove('hidden');
+
+        const badge = document.getElementById('result-status-badge');
+        badge.className = 'status-badge text-sm font-semibold px-3 py-1.5 rounded-full status-' + data.status;
+        badge.textContent = STATUS_LABELS[data.status] || data.status;
+
+        const confidencePct = Math.round((data.confidence || 0) * 100);
+        document.getElementById('result-confidence-text').textContent = confidencePct + '%';
+        document.getElementById('result-confidence-bar').style.width = confidencePct + '%';
+
+        document.getElementById('result-message').textContent = data.message || '';
+
+        const details = data.product_details || {};
+        const detailsBlock = document.getElementById('result-product-details');
+        if (details.name || details.manufacturer || details.category) {
+            detailsBlock.classList.remove('hidden');
+            document.getElementById('result-product-name').textContent = details.name || 'Not detected';
+            document.getElementById('result-product-manufacturer').textContent = details.manufacturer || 'Not detected';
+            document.getElementById('result-product-category').textContent = details.category || 'Not detected';
+        } else {
+            detailsBlock.classList.add('hidden');
+        }
+
+        const barcodeInfo = data.barcode_scanning || (data.verification_method === 'barcode' ? data : null);
+        const barcodeBlock = document.getElementById('result-barcode-block');
+        if (barcodeInfo && (barcodeInfo.barcode_data || barcodeInfo.database_lookup)) {
+            barcodeBlock.classList.remove('hidden');
+            const lookup = barcodeInfo.database_lookup || {};
+            const codes = (barcodeInfo.barcode_data || []).map((b) => b.data).join(', ');
+            let text = codes ? ('Code: ' + codes + '. ') : '';
+            text += lookup.found
+                ? ('Matched a registered product: ' + (lookup.name || 'unnamed') + (lookup.brand ? (' by ' + lookup.brand) : '') + '.')
+                : 'Not found in the free public product databases we checked.';
+            document.getElementById('result-barcode-text').textContent = text;
+        } else {
+            barcodeBlock.classList.add('hidden');
+        }
+
+        const securityFeatures = data.security_features_observed || [];
+        const securityBlock = document.getElementById('result-security-block');
+        const securityList = document.getElementById('result-security-list');
+        securityList.innerHTML = '';
+        if (securityFeatures.length) {
+            securityBlock.classList.remove('hidden');
+            securityFeatures.forEach((f) => {
+                const li = document.createElement('li');
+                li.textContent = f;
+                securityList.appendChild(li);
+            });
+        } else {
+            securityBlock.classList.add('hidden');
+        }
+
+        const redFlags = data.red_flags || [];
+        const flagsBlock = document.getElementById('result-flags-block');
+        const flagsList = document.getElementById('result-flags-list');
+        flagsList.innerHTML = '';
+        if (redFlags.length) {
+            flagsBlock.classList.remove('hidden');
+            redFlags.forEach((f) => {
+                const li = document.createElement('li');
+                li.textContent = f;
+                flagsList.appendChild(li);
+            });
+        } else {
+            flagsBlock.classList.add('hidden');
+        }
+
+        const recBlock = document.getElementById('result-recommendation-block');
+        if (data.recommendation) {
+            recBlock.classList.remove('hidden');
+            document.getElementById('result-recommendation-text').textContent = data.recommendation;
+        } else {
+            recBlock.classList.add('hidden');
+        }
+
+        document.getElementById('result-model-used').textContent = data.model_used
+            ? ('Analyzed with ' + data.model_used) : '';
+
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function submitVerification(formData) {
+        showLoading();
+        try {
+            const resp = await fetch("{% url 'products:verify_product_api' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData,
+            });
+            const data = await resp.json();
+            renderResults(data);
+        } catch (err) {
+            showError('Network error - please check your connection and try again.');
+        }
+    }
+
+    async function submitBarcodeOnly(barcodeValue) {
+        showLoading();
+        try {
+            const formData = new FormData();
+            formData.append('barcode_value', barcodeValue);
+            if (productNameInput.value.trim()) formData.append('product_name', productNameInput.value.trim());
+            const resp = await fetch("{% url 'products:verify_barcode_api' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData,
+            });
+            const data = await resp.json();
+            renderResults(data);
+        } catch (err) {
+            showError('Network error - please check your connection and try again.');
+        }
+    }
+
+    // ---------- Upload tab ----------
+    const uploadDropZone = document.getElementById('upload-drop-zone');
+    const uploadInput = document.getElementById('upload-input');
+    const uploadPreviewWrap = document.getElementById('upload-preview-wrap');
+    const uploadPreview = document.getElementById('upload-preview');
+    const uploadVerifyBtn = document.getElementById('upload-verify-btn');
+    let uploadedFile = null;
+
+    uploadDropZone.addEventListener('click', () => uploadInput.click());
+    uploadDropZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadDropZone.classList.add('dragover'); });
+    uploadDropZone.addEventListener('dragleave', () => uploadDropZone.classList.remove('dragover'));
+    uploadDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadDropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleUploadFile(e.dataTransfer.files[0]);
+    });
+    uploadInput.addEventListener('change', () => {
+        if (uploadInput.files.length) handleUploadFile(uploadInput.files[0]);
+    });
+
+    function handleUploadFile(file) {
+        if (!file.type.startsWith('image/')) { showError('Please choose an image file.'); return; }
+        uploadedFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadPreview.src = e.target.result;
+            uploadPreviewWrap.classList.remove('hidden');
+            uploadDropZone.classList.add('hidden');
+            uploadVerifyBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    document.getElementById('upload-clear-btn').addEventListener('click', () => {
+        uploadedFile = null;
+        uploadInput.value = '';
+        uploadPreviewWrap.classList.add('hidden');
+        uploadDropZone.classList.remove('hidden');
+        uploadVerifyBtn.disabled = true;
+    });
+
+    uploadVerifyBtn.addEventListener('click', () => {
+        if (!uploadedFile) return;
+        const formData = new FormData();
+        formData.append('image', uploadedFile);
+        if (productNameInput.value.trim()) formData.append('product_name', productNameInput.value.trim());
+        submitVerification(formData);
+    });
+
+    // ---------- Camera tab ----------
+    const cameraVideo = document.getElementById('camera-video');
+    const cameraCanvas = document.getElementById('camera-canvas');
+    const cameraPreview = document.getElementById('camera-preview');
+    const cameraPlaceholder = document.getElementById('camera-placeholder');
+    const cameraStartBtn = document.getElementById('camera-start-btn');
+    const cameraSnapBtn = document.getElementById('camera-snap-btn');
+    const cameraRetakeBtn = document.getElementById('camera-retake-btn');
+    const cameraVerifyBtn = document.getElementById('camera-verify-btn');
+    let cameraStream = null;
+    let capturedBlob = null;
+
+    async function startCameraStream() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            cameraVideo.srcObject = cameraStream;
+            cameraVideo.classList.remove('hidden');
+            cameraPlaceholder.classList.add('hidden');
+            cameraPreview.classList.add('hidden');
+            cameraStartBtn.classList.add('hidden');
+            cameraSnapBtn.classList.remove('hidden');
+        } catch (err) {
+            showError('Could not access your camera. Check permissions, or use Upload Photo instead.');
+        }
+    }
+    function stopCameraStream() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach((t) => t.stop());
+            cameraStream = null;
+        }
+    }
+
+    cameraStartBtn.addEventListener('click', startCameraStream);
+
+    cameraSnapBtn.addEventListener('click', () => {
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0);
+        cameraCanvas.toBlob((blob) => {
+            capturedBlob = blob;
+            cameraPreview.src = URL.createObjectURL(blob);
+            cameraPreview.classList.remove('hidden');
+            cameraVideo.classList.add('hidden');
+            cameraSnapBtn.classList.add('hidden');
+            cameraRetakeBtn.classList.remove('hidden');
+            cameraVerifyBtn.disabled = false;
+            stopCameraStream();
+        }, 'image/jpeg', 0.9);
+    });
+
+    cameraRetakeBtn.addEventListener('click', () => {
+        capturedBlob = null;
+        cameraVerifyBtn.disabled = true;
+        cameraRetakeBtn.classList.add('hidden');
+        cameraPreview.classList.add('hidden');
+        startCameraStream();
+    });
+
+    cameraVerifyBtn.addEventListener('click', () => {
+        if (!capturedBlob) return;
+        const formData = new FormData();
+        formData.append('image', capturedBlob, 'capture.jpg');
+        if (productNameInput.value.trim()) formData.append('product_name', productNameInput.value.trim());
+        submitVerification(formData);
+    });
+
+    // ---------- Barcode tab ----------
+    const barcodeVideo = document.getElementById('barcode-video');
+    const barcodePlaceholder = document.getElementById('barcode-placeholder');
+    const barcodeStartBtn = document.getElementById('barcode-start-btn');
+    const barcodeStopBtn = document.getElementById('barcode-stop-btn');
+    const barcodeStatus = document.getElementById('barcode-status');
+    let barcodeStream = null;
+    let barcodeScanInterval = null;
+    let barcodeDetector = null;
+
+    function stopBarcodeScanning() {
+        if (barcodeScanInterval) { clearInterval(barcodeScanInterval); barcodeScanInterval = null; }
+        if (barcodeStream) { barcodeStream.getTracks().forEach((t) => t.stop()); barcodeStream = null; }
+        barcodeVideo.classList.add('hidden');
+        barcodePlaceholder.classList.remove('hidden');
+        barcodeStartBtn.classList.remove('hidden');
+        barcodeStopBtn.classList.add('hidden');
+    }
+
+    barcodeStartBtn.addEventListener('click', async () => {
+        if (!('BarcodeDetector' in window)) {
+            barcodeStatus.textContent = "Your browser doesn't support live barcode scanning. Use the manual entry field below, or snap a photo on the Use Camera tab.";
+            return;
+        }
+        try {
+            const formats = await window.BarcodeDetector.getSupportedFormats();
+            barcodeDetector = new window.BarcodeDetector({ formats });
+            barcodeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            barcodeVideo.srcObject = barcodeStream;
+            barcodeVideo.classList.remove('hidden');
+            barcodePlaceholder.classList.add('hidden');
+            barcodeStartBtn.classList.add('hidden');
+            barcodeStopBtn.classList.remove('hidden');
+            barcodeStatus.textContent = 'Point your camera at a barcode or QR code...';
+
+            barcodeScanInterval = setInterval(async () => {
+                try {
+                    const codes = await barcodeDetector.detect(barcodeVideo);
+                    if (codes.length) {
+                        const value = codes[0].rawValue;
+                        barcodeStatus.textContent = 'Detected: ' + value;
+                        stopBarcodeScanning();
+                        submitBarcodeOnly(value);
+                    }
+                } catch (err) { /* keep trying */ }
+            }, 600);
+        } catch (err) {
+            showError('Could not access your camera. Check permissions, or use manual entry below.');
+        }
+    });
+
+    barcodeStopBtn.addEventListener('click', stopBarcodeScanning);
+
+    document.getElementById('barcode-manual-verify-btn').addEventListener('click', () => {
+        const value = document.getElementById('barcode-manual-input').value.trim();
+        if (!value) { showError('Enter a barcode number first.'); return; }
+        submitBarcodeOnly(value);
+    });
+
+    window.addEventListener('beforeunload', () => { stopCameraStream(); stopBarcodeScanning(); });
+})();
+</script>
+{% endblock %}

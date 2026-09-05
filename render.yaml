@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: product-verification
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn product_verification.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: false
+      # Set this to your actual Render URL (and any custom domain), comma-separated.
+      - key: ALLOWED_HOSTS
+        value: your-app-name.onrender.com
+      # Leave empty to use local SQLite (fine for a demo; data is lost on
+      # redeploy). Attach a Render Postgres instance and paste its internal
+      # connection string here for persistent data - then add
+      # `psycopg[binary]` to requirements.txt.
+      - key: DATABASE_URL
+        value: ""
+      # Free vision model access - get a key at https://openrouter.ai/keys
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: 4
