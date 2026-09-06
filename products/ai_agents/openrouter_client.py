@@ -132,14 +132,59 @@ class OpenRouterClient:
 
             try:
                 data = response.json()
-                text = data["choices"][0]["message"]["content"]
-            except (ValueError, KeyError, IndexError) as exc:
-                last_error = f"{model}: unexpected response shape ({exc})"
+            except ValueError as exc:
+                last_error = f"{model}: invalid JSON ({exc})"
                 logger.warning(last_error)
                 continue
 
-            if not text or not text.strip():
-                last_error = f"{model}: empty response"
+            # Best-effort extraction of a text reply from varying response shapes.
+            text = None
+
+            # Common OpenAI-like shape: choices -> [ { message: { content: "..." } } ]
+            if isinstance(data, dict):
+                choices = data.get("choices")
+                if isinstance(choices, list) and choices:
+                    first = choices[0]
+                    if isinstance(first, dict):
+                        # message.content or text
+                        msg = first.get("message") or first
+                        if isinstance(msg, dict):
+                            text = msg.get("content") or msg.get("text")
+                        else:
+                            text = first.get("text") if isinstance(first, dict) else None
+
+            # Fallbacks for other providers / shapes
+            if not text:
+                if isinstance(data, dict):
+                    for alt in ("text", "result", "output", "response", "message"):
+                        v = data.get(alt)
+                        if isinstance(v, str) and v.strip():
+                            text = v
+                            break
+
+                    # If result/output is a dict, try to find a string leaf
+                    if not text:
+                        candidate = data.get("result") or data.get("output") or data.get("response")
+                        def _find_str_leaf(obj):
+                            if isinstance(obj, str):
+                                return obj
+                            if isinstance(obj, dict):
+                                for val in obj.values():
+                                    found = _find_str_leaf(val)
+                                    if found:
+                                        return found
+                            if isinstance(obj, list):
+                                for item in obj:
+                                    found = _find_str_leaf(item)
+                                    if found:
+                                        return found
+                            return None
+                        if candidate is not None:
+                            text = _find_str_leaf(candidate)
+
+            if not text or not isinstance(text, str) or not text.strip():
+                last_error = f"{model}: unexpected response shape (no text found)"
+                logger.warning("%s - response keys: %s", last_error, list(data.keys()) if isinstance(data, dict) else type(data))
                 continue
 
             return OpenRouterResult(ok=True, text=text, model_used=model, raw=data)

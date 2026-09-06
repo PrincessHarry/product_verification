@@ -202,8 +202,8 @@
         <div id="result-recommendation-block" class="hidden mt-5 bg-amber-50 border border-amber-100 rounded-lg p-4 text-sm text-amber-800">
             <i class="fas fa-lightbulb mr-2"></i><span id="result-recommendation-text"></span>
         </div>
-
-        <!-- <p id="result-model-used" class="mt-5 text-xs text-gray-400"></p> -->
+        <p id="result-officiality" class="mt-3 text-sm text-gray-600 hidden"></p>
+        
     </div>
 </div>
 {% endblock %}
@@ -338,9 +338,115 @@
         } else {
             recBlock.classList.add('hidden');
         }
+        // Officiality (company site) check
+        try {
+            const brandResearch = data.brand_research || {};
+            const officiality = (brandResearch.officiality || '').toLowerCase();
+            const matched = brandResearch.matched_site || brandResearch.official_product_url || '';
+            const evidence = brandResearch.evidence || '';
+            const offEl = document.getElementById('result-officiality');
+            if (officiality === 'confirmed') {
+                offEl.classList.remove('hidden');
+                offEl.innerHTML = '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Official site confirmed</span>' +
+                    (matched ? (' <a href="' + matched + '" target="_blank" rel="noreferrer" class="text-primary underline">View</a>') : '');
+                if (evidence) offEl.title = evidence;
+            } else if (officiality === 'likely') {
+                offEl.classList.remove('hidden');
+                offEl.innerHTML = '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Official site likely</span>' +
+                    (matched ? (' <a href="' + matched + '" target="_blank" rel="noreferrer" class="text-primary underline">View</a>') : '');
+                if (evidence) offEl.title = evidence;
+            } else {
+                offEl.classList.add('hidden');
+                offEl.textContent = '';
+                offEl.title = '';
+            }
+        } catch (e) {
+            // ignore UI errors
+        }
+            // Officiality (company site) check — build a clear message for users
+            try {
+                const brandResearch = data.brand_research || {};
+                const officiality = (brandResearch.officiality || '').toLowerCase();
+                const matched = brandResearch.matched_site || brandResearch.official_product_url || '';
+                const evidence = brandResearch.evidence || '';
+                const brand = brandResearch.brand || '';
+                const offEl = document.getElementById('result-officiality');
+                offEl.innerHTML = '';
 
-        document.getElementById('result-model-used').textContent = data.model_used
-            ? ('Analyzed with ' + data.model_used) : '';
+                if (officiality === 'confirmed' || officiality === 'likely' || (matched && officiality === 'unknown')) {
+                    offEl.classList.remove('hidden');
+
+                    // badge
+                    const badge = document.createElement('span');
+                    badge.className = officiality === 'confirmed'
+                        ? 'px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800'
+                        : 'px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800';
+                    badge.textContent = officiality === 'confirmed' ? 'Official site confirmed' : (officiality === 'likely' ? 'Official site likely' : 'Site checked');
+                    offEl.appendChild(badge);
+
+                    // view link
+                    if (matched) {
+                        const space = document.createTextNode(' ');
+                        offEl.appendChild(space);
+                        const a = document.createElement('a');
+                        a.href = matched;
+                        a.target = '_blank';
+                        a.rel = 'noreferrer';
+                        a.className = 'text-primary underline';
+                        a.textContent = 'View';
+                        offEl.appendChild(a);
+                    }
+
+                    // friendly explanatory message
+                    const msg = document.createElement('div');
+                    msg.className = 'text-sm text-gray-700 mt-2';
+                    let host = '';
+                    try {
+                        if (matched) host = new URL(matched).hostname.replace('www.', '');
+                    } catch (err) { host = matched || '' }
+
+                    let messageText = '';
+                    if (officiality === 'confirmed') {
+                        if (host) {
+                            messageText = `I checked the official website of ${host} and this item appears to be listed there. Be careful — exact replicas can still exist.`;
+                        } else if (brand) {
+                            messageText = `I checked official channels for ${brand} and this item appears to be listed there. Be careful — exact replicas can still exist.`;
+                        } else {
+                            messageText = 'I checked an official site and this item appears to be listed there. Be careful — exact replicas can still exist.';
+                        }
+                    } else if (officiality === 'likely') {
+                        if (host) {
+                            messageText = `I checked the official website of ${host} and found mentions suggesting this may be genuine; still verify carefully.`;
+                        } else {
+                            messageText = 'I found some signs on a likely official site, but this is not conclusive; verify carefully.';
+                        }
+                    } else if (matched && officiality === 'unknown') {
+                        if (host) {
+                            messageText = `I checked the official website of ${host} and did not find this item listed; this suggests it may not be produced by them.`;
+                        } else {
+                            messageText = 'I checked the candidate site and did not find the product listed; this suggests it may not be produced by the brand.';
+                        }
+                    } else if (brand) {
+                        messageText = `I searched official channels for ${brand} but couldn't confirm whether they produce this item.`;
+                    } else {
+                        messageText = `No conclusive official site information was found.`;
+                    }
+
+                    msg.textContent = messageText;
+                    offEl.appendChild(msg);
+
+                    if (evidence) {
+                        const note = document.createElement('div');
+                        note.className = 'text-xs text-gray-400 mt-1 italic';
+                        note.textContent = `Evidence: ${evidence}`;
+                        offEl.appendChild(note);
+                    }
+                } else {
+                    offEl.classList.add('hidden');
+                }
+            } catch (e) {
+                // ignore UI errors
+            }
 
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
