@@ -202,8 +202,6 @@
         <div id="result-recommendation-block" class="hidden mt-5 bg-amber-50 border border-amber-100 rounded-lg p-4 text-sm text-amber-800">
             <i class="fas fa-lightbulb mr-2"></i><span id="result-recommendation-text"></span>
         </div>
-
-        <p id="result-model-used" class="mt-5 text-xs text-gray-400"></p>
     </div>
 </div>
 {% endblock %}
@@ -338,9 +336,6 @@
         } else {
             recBlock.classList.add('hidden');
         }
-
-        document.getElementById('result-model-used').textContent = data.model_used
-            ? ('Analyzed with ' + data.model_used) : '';
 
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
