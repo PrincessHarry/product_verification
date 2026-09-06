@@ -3,7 +3,7 @@ services:
     name: product-verification
     env: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn product_verification.wsgi:application"
+    startCommand: "gunicorn product_verification.asgi:application -k uvicorn.workers.UvicornWorker -w $WEB_CONCURRENCY --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
