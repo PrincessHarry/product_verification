@@ -25,7 +25,7 @@ SECRET_KEY = os.getenv(
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
-    h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()
+    h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,product-verification-xxlt.onrender.com").split(",") if h.strip()
 ]
 if not DEBUG and not ALLOWED_HOSTS:
     raise RuntimeError("ALLOWED_HOSTS must be set when DJANGO_DEBUG=False")
