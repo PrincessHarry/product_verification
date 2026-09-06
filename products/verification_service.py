@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Any, Dict, Optional
 
 from .ai_agents.barcode_agent import BarcodeVerificationAgent
@@ -53,7 +54,8 @@ class VerificationService:
                 "confidence": 0.0,
             }
 
-        brand_research = self.brand_agent.research_brand(product_name)
+        # Run potentially blocking network calls off the event loop
+        brand_research = await asyncio.to_thread(self.brand_agent.research_brand, product_name)
 
         image_result: Optional[Dict[str, Any]] = None
         barcode_result: Optional[Dict[str, Any]] = None
