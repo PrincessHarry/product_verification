@@ -202,7 +202,8 @@
         <div id="result-recommendation-block" class="hidden mt-5 bg-amber-50 border border-amber-100 rounded-lg p-4 text-sm text-amber-800">
             <i class="fas fa-lightbulb mr-2"></i><span id="result-recommendation-text"></span>
         </div>
-        
+
+        <!-- model attribution removed per user preference -->
     </div>
 </div>
 {% endblock %}
@@ -337,7 +338,8 @@
         } else {
             recBlock.classList.add('hidden');
         }
-        
+
+        // model attribution intentionally hidden
 
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

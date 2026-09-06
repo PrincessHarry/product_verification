@@ -1,6 +1,6 @@
 import logging
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from django.core.files.base import ContentFile
 from django.shortcuts import render
 from django.http import JsonResponse
@@ -111,7 +111,7 @@ def _save_verification(result: dict, method: str, image_file=None, barcode_value
 
 @csrf_exempt
 @require_http_methods(["POST"])
-async def verify_product_api(request):
+def verify_product_api(request):
     """Verify a product from an uploaded/captured image, optionally with a
     product name hint and/or a barcode value read client-side."""
     form = VerifyImageForm(request.POST, request.FILES)
@@ -129,7 +129,7 @@ async def verify_product_api(request):
         mime_type = getattr(image, "content_type", None) or "image/jpeg"
 
     try:
-        result = await verification_service.verify_product(
+        result = async_to_sync(verification_service.verify_product)(
             image_data=image_bytes,
             product_name=product_name,
             barcode_value=barcode_value,
@@ -151,17 +151,15 @@ async def verify_product_api(request):
         image.seek(0)
         saved_image = ContentFile(image_bytes, name=image.name)
 
-    # Persist asynchronously to avoid blocking the request thread
-    await sync_to_async(_save_verification)(
-        result, django_method, image_file=saved_image, barcode_value=barcode_value or ""
-    )
+    # Persist synchronously in the sync view
+    _save_verification(result, django_method, image_file=saved_image, barcode_value=barcode_value or "")
 
     return JsonResponse(result)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
-async def verify_barcode_api(request):
+def verify_barcode_api(request):
     """Verify a product from a barcode value only (e.g. scanned live via
     the browser's BarcodeDetector API, with no photo involved)."""
     form = BarcodeLookupForm(request.POST)
@@ -172,15 +170,13 @@ async def verify_barcode_api(request):
     product_name = form.cleaned_data.get("product_name") or None
 
     try:
-        result = await verification_service.verify_product(
+        result = async_to_sync(verification_service.verify_product)(
             barcode_value=barcode_value, product_name=product_name,
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Barcode verification failed")
         return _error_response(f"An error occurred during verification: {exc}", status_code=500)
 
-    await sync_to_async(_save_verification)(
-        result, Verification.Method.BARCODE, barcode_value=barcode_value
-    )
+    _save_verification(result, Verification.Method.BARCODE, barcode_value=barcode_value)
 
     return JsonResponse(result)

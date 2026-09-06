@@ -21,9 +21,6 @@ class BrandResearchAgent:
             return {
                 "brand": None,
                 "official_product_url": None,
-                "matched_site": None,
-                "officiality": "unknown",
-                "evidence": "",
                 "reference_images": [],
                 "notes": "No product name provided; skipped brand research.",
             }
@@ -61,7 +58,6 @@ class BrandResearchAgent:
                             if image.get("source"):
                                 reference_images.append(image["source"])
                                 notes.append("Added Wikipedia reference image.")
-                    # (No further site checks here; keep Wikipedia-sourced URL if present.)
         except requests.RequestException as exc:
             notes.append(f"Wikipedia lookup unavailable: {exc}")
 
@@ -89,6 +85,3 @@ class BrandResearchAgent:
             "reference_images": reference_images,
             "notes": "; ".join(notes) if notes else "",
         }
-
-    # NOTE: removed site-evidence helper functions per configuration —
-    # we no longer perform external site scraping here.
