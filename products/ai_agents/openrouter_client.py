@@ -15,6 +15,8 @@ import json
 import logging
 import os
 import re
+import time
+import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +38,8 @@ DEFAULT_VISION_MODELS: List[str] = [
 ]
 
 REQUEST_TIMEOUT_SECONDS = 60
+MAX_RETRIES_PER_MODEL = 3
+BACKOFF_BASE_SECONDS = 0.6
 
 
 @dataclass
@@ -99,42 +103,80 @@ class OpenRouterClient:
 
         last_error = "No models available"
         for model in self.models:
-            try:
-                response = requests.post(
-                    OPENROUTER_API_URL,
-                    headers=self._headers(),
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                    timeout=REQUEST_TIMEOUT_SECONDS,
-                )
-            except requests.RequestException as exc:
-                last_error = f"{model}: network error ({exc})"
-                logger.warning("OpenRouter request failed for %s: %s", model, exc)
-                continue
+            data = None
+            for attempt in range(1, MAX_RETRIES_PER_MODEL + 1):
+                try:
+                    response = requests.post(
+                        OPENROUTER_API_URL,
+                        headers=self._headers(),
+                        json={
+                            "model": model,
+                            "messages": messages,
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                        },
+                        timeout=REQUEST_TIMEOUT_SECONDS,
+                    )
+                except requests.RequestException as exc:
+                    last_error = f"{model}: network error ({exc})"
+                    logger.warning("OpenRouter request failed for %s (attempt %d): %s", model, attempt, exc)
+                    # Retry network errors up to the max attempts
+                    if attempt < MAX_RETRIES_PER_MODEL:
+                        backoff = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                        backoff = backoff * (0.8 + random.random() * 0.4)
+                        time.sleep(backoff)
+                        continue
+                    break
 
-            if response.status_code == 401:
-                # Bad API key - no point trying other models.
-                return OpenRouterResult(ok=False, error="Invalid OPENROUTER_API_KEY.")
+                if response.status_code == 401:
+                    # Bad API key - no point trying other models.
+                    return OpenRouterResult(ok=False, error="Invalid OPENROUTER_API_KEY.")
 
-            if response.status_code == 429:
-                last_error = f"{model}: rate limited, trying next free model"
-                logger.info(last_error)
-                continue
+                if response.status_code == 429:
+                    # Rate limited: retry the same model a few times with backoff,
+                    # then move on to the next model.
+                    last_error = f"{model}: rate limited (attempt {attempt})"
+                    logger.info("%s - will retry after backoff", last_error)
+                    if attempt < MAX_RETRIES_PER_MODEL:
+                        backoff = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                        backoff = backoff * (0.8 + random.random() * 0.4)
+                        time.sleep(backoff)
+                        continue
+                    # exhausted retries for this model; try next model
+                    logger.info("%s - exhausted retries, trying next model", model)
+                    break
 
-            if not response.ok:
-                last_error = f"{model}: HTTP {response.status_code} - {response.text[:300]}"
-                logger.warning(last_error)
-                continue
+                if not response.ok:
+                    # Try to extract useful error info from JSON error shapes
+                    try:
+                        err_json = response.json()
+                        if isinstance(err_json, dict) and err_json.get("error"):
+                            err_part = err_json.get("error")
+                            if isinstance(err_part, dict):
+                                msg = err_part.get("message") or json.dumps(err_part)
+                            else:
+                                msg = str(err_part)
+                            last_error = f"{model}: HTTP {response.status_code} - {msg}"
+                        else:
+                            last_error = f"{model}: HTTP {response.status_code} - {response.text[:300]}"
+                    except ValueError:
+                        last_error = f"{model}: HTTP {response.status_code} - {response.text[:300]}"
+                    logger.warning(last_error)
+                    # don't retry non-retryable HTTP errors for this model
+                    break
 
-            try:
-                data = response.json()
-            except ValueError as exc:
-                last_error = f"{model}: invalid JSON ({exc})"
-                logger.warning(last_error)
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    last_error = f"{model}: invalid JSON ({exc})"
+                    logger.warning(last_error)
+                    # invalid JSON unlikely to recover with retry; move to next model
+                    data = None
+                    break
+
+            # If we exited the attempts loop without valid JSON, try next model
+            if data is None:
+                logger.info("%s - no valid JSON response received, trying next model", model)
                 continue
 
             # Best-effort extraction of a text reply from varying response shapes.
@@ -156,6 +198,20 @@ class OpenRouterClient:
             # Fallbacks for other providers / shapes
             if not text:
                 if isinstance(data, dict):
+                    # If the response carries an error payload, prefer that message
+                    if data.get("error"):
+                        try:
+                            err = data.get("error")
+                            if isinstance(err, dict):
+                                last_error = f"{model}: error - {err.get('message') or json.dumps(err)}"
+                            else:
+                                last_error = f"{model}: error - {err}"
+                        except Exception:
+                            last_error = f"{model}: error - {data.get('error')}"
+                        logger.warning(last_error)
+                        # try next model
+                        continue
+
                     for alt in ("text", "result", "output", "response", "message"):
                         v = data.get(alt)
                         if isinstance(v, str) and v.strip():
