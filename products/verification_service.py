@@ -55,7 +55,13 @@ class VerificationService:
             }
 
         # Run potentially blocking network calls off the event loop
-        brand_research = await asyncio.to_thread(self.brand_agent.research_brand, product_name)
+       
+        brand_research = {
+            "brand": None,
+            "official_product_url": None,
+            "reference_images": [],
+            "notes": "Disabled for testing"
+}
 
         image_result: Optional[Dict[str, Any]] = None
         barcode_result: Optional[Dict[str, Any]] = None
