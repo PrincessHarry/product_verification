@@ -47,6 +47,9 @@ class VerificationService:
 
         At least one of `image_data` or `barcode_value` must be provided.
         """
+        logger.info("verify_product called; image_data=%s, barcode_value=%s, product_name=%s", 
+                    'present' if image_data else 'none', bool(barcode_value), product_name)
+
         if not image_data and not barcode_value:
             return {
                 "status": "error",
@@ -67,18 +70,36 @@ class VerificationService:
         barcode_result: Optional[Dict[str, Any]] = None
 
         if image_data:
-            image_result = await self.image_agent.verify_authenticity(
-                image_data=image_data, product_name=product_name, mime_type=mime_type,
-            )
+            try:
+                logger.info("Starting image analysis (size=%d bytes)", len(image_data))
+                image_result = await self.image_agent.verify_authenticity(
+                    image_data=image_data, product_name=product_name, mime_type=mime_type,
+                )
+                logger.info("Image analysis completed: status=%s, confidence=%s", image_result.get('status'), image_result.get('confidence'))
+            except Exception as exc:
+                logger.exception("Image analysis raised an exception")
+                image_result = {"status": "error", "message": f"Image analysis failed: {exc}", "confidence": 0.0}
 
         if barcode_value:
-            barcode_result = await self.barcode_agent.verify_authenticity(
-                barcode_value=barcode_value, product_name=product_name,
-            )
+            try:
+                logger.info("Starting barcode verification for %s", barcode_value)
+                barcode_result = await self.barcode_agent.verify_authenticity(
+                    barcode_value=barcode_value, product_name=product_name,
+                )
+                logger.info("Barcode verification completed: status=%s, confidence=%s", barcode_result.get('status'), barcode_result.get('confidence'))
+            except Exception as exc:
+                logger.exception("Barcode verification raised an exception")
+                barcode_result = {"status": "error", "message": f"Barcode verification failed: {exc}", "confidence": 0.0}
         elif image_data and scan_barcode_in_image:
-            barcode_result = await self.barcode_agent.verify_authenticity(
-                image_data=image_data, product_name=product_name,
-            )
+            try:
+                logger.info("Attempting barcode scan from image")
+                barcode_result = await self.barcode_agent.verify_authenticity(
+                    image_data=image_data, product_name=product_name,
+                )
+                logger.info("Barcode-from-image result: %s", barcode_result.get('status'))
+            except Exception as exc:
+                logger.exception("Barcode-from-image verification raised an exception")
+                barcode_result = {"status": "error", "message": f"Barcode-from-image failed: {exc}", "confidence": 0.0}
             if barcode_result.get("status") == "no_barcode":
                 # Not finding a barcode in a product photo isn't an error -
                 # just drop it from the combined result.

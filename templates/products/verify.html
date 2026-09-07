@@ -348,7 +348,26 @@
                 headers: { 'X-CSRFToken': csrfToken },
                 body: formData,
             });
-            const data = await resp.json();
+            let data;
+            if (!resp.ok) {
+                // Try to extract JSON error payload, fall back to text
+                try {
+                    const err = await resp.json();
+                    showError(err.message || 'Server error during verification.');
+                    return;
+                } catch (e) {
+                    const text = await resp.text();
+                    showError(text || `Server error (${resp.status})`);
+                    return;
+                }
+            }
+            try {
+                data = await resp.json();
+            } catch (e) {
+                const text = await resp.text();
+                showError(text || 'Invalid response from server.');
+                return;
+            }
             renderResults(data);
         } catch (err) {
             showError('Network error - please check your connection and try again.');
@@ -366,7 +385,25 @@
                 headers: { 'X-CSRFToken': csrfToken },
                 body: formData,
             });
-            const data = await resp.json();
+            if (!resp.ok) {
+                try {
+                    const err = await resp.json();
+                    showError(err.message || 'Server error during verification.');
+                    return;
+                } catch (e) {
+                    const text = await resp.text();
+                    showError(text || `Server error (${resp.status})`);
+                    return;
+                }
+            }
+            let data;
+            try {
+                data = await resp.json();
+            } catch (e) {
+                const text = await resp.text();
+                showError(text || 'Invalid response from server.');
+                return;
+            }
             renderResults(data);
         } catch (err) {
             showError('Network error - please check your connection and try again.');
