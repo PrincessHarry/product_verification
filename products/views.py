@@ -3,7 +3,7 @@ import logging
 from asgiref.sync import sync_to_async, async_to_sync
 from django.core.files.base import ContentFile
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -16,20 +16,20 @@ logger = logging.getLogger(__name__)
 verification_service = VerificationService()
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "HEAD"])
 def index(request):
     """Home page."""
     recent = Verification.objects.select_related("product")[:6]
     return render(request, "products/index.html", {"recent_verifications": recent})
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "HEAD"])
 def verify_page(request):
     """Verification page (upload photo / use camera / scan barcode)."""
     return render(request, "products/verify.html")
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "HEAD"])
 def history_page(request):
     """Recent verification history."""
     verifications = Verification.objects.select_related("product")[:50]
