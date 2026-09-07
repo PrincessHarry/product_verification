@@ -102,7 +102,27 @@ class ImageVerificationAgent(BaseVerificationAgent):
         result = await asyncio.to_thread(self.client.vision_json, prompt, image_data_url)
 
         if not result.ok:
-            return {"error": result.error or "AI analysis failed", "verification_method": "image_analysis"}
+            # Log the provider error and return a sensible, low-confidence
+            # fallback so the frontend can show a result instead of an error.
+            logger.warning("OpenRouter vision_json failed: %s", result.error)
+            fallback = {
+                "product_name": product_name or "Not detected",
+                "brand": "",
+                "category": "",
+                "authenticity_verdict": "uncertain",
+                "confidence": 0.25,
+                "reasoning": f"AI analysis unavailable: {result.error}",
+                "packaging_quality": "",
+                "security_features_observed": [],
+                "red_flags": [],
+                "recommendation": "Retry image analysis later or try again with a clearer photo.",
+            }
+            return {
+                "analysis_json": fallback,
+                "analysis": fallback.get("reasoning", ""),
+                "model_used": result.model_used or "",
+                "verification_method": "image_analysis",
+            }
 
         parsed = result.raw.get("parsed") or {}
         return {

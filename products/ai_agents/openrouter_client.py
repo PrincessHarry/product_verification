@@ -33,12 +33,11 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_VISION_MODELS: List[str] = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
-    "nvidia/nemotron-nano-12b-v2-vl:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
-REQUEST_TIMEOUT_SECONDS = 60
-MAX_RETRIES_PER_MODEL = 3
+REQUEST_TIMEOUT_SECONDS = 20
+MAX_RETRIES_PER_MODEL = 1
 BACKOFF_BASE_SECONDS = 0.6
 
 
@@ -60,8 +59,26 @@ class OpenRouterClient:
     def __init__(self, models: Optional[List[str]] = None):
         self.api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
         self.models = models or self._models_from_env() or DEFAULT_VISION_MODELS
-        self.site_url = os.getenv("OPENROUTER_SITE_URL", "http://localhost:8000")
-        self.site_name = os.getenv("OPENROUTER_SITE_NAME", "Product Verification System")
+
+        # Resolve site URL/name: prefer environment, then Django settings, then sane defaults.
+        try:
+            from django.conf import settings as django_settings  # type: ignore
+        except Exception:
+            django_settings = None
+
+        env_site = os.getenv("OPENROUTER_SITE_URL")
+        env_name = os.getenv("OPENROUTER_SITE_NAME")
+
+        self.site_url = (
+            env_site
+            or (getattr(django_settings, "SITE_URL", None) if django_settings else None)
+            or "http://localhost:8000"
+        )
+        self.site_name = (
+            env_name
+            or (getattr(django_settings, "SITE_NAME", None) if django_settings else None)
+            or "Product Verification System"
+        )
 
     @staticmethod
     def _models_from_env() -> Optional[List[str]]:
